@@ -1,0 +1,23 @@
+{
+  "name": "keeperhub-agentkit-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "exp0": "tsx scripts/exp0-revert.ts",
+    "proxy": "tsx scripts/rpc-proxy.ts",
+    "campaign": "tsx scripts/campaign.ts",
+    "survey": "python3 scripts/survey-preflight.py",
+    "verify": "./scripts/verify-receipts.sh receipts.json",
+    "demo": "tsx scripts/demo.ts"
+  },
+  "dependencies": {
+    "@coinbase/agentkit": "^0.9.0",
+    "agentkit-keeperhub": "file:../packages/agentkit-keeperhub",
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

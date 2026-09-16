@@ -1,0 +1,42 @@
+{
+  "trials": 100,
+  "startBlock": "46881051",
+  "senders": {
+    "A": "0x292D5dcdb6aC1F3a0452E6eB8fA26Ff6658B325d",
+    "B": "0x292D5dcdb6aC1F3a0452E6eB8fA26Ff6658B325d",
+    "C": "0x449FE01435Af28FD60320B198219068d3f1656CB"
+  },
+  "injectStats": {
+    "passed": 2193,
+    "injected": 582
+  },
+  "summary": {
+    "A": {
+      "landed": 129,
+      "clean": 29,
+      "duplicated": 50,
+      "none": 21,
+      "outcomeKnown": 0,
+      "hashLeaked": 79,
+      "failedAttempts": 200
+    },
+    "B": {
+      "landed": 81,
+      "clean": 81,
+      "duplicated": 0,
+      "none": 19,
+      "outcomeKnown": 0,
+      "hashLeaked": 81,
+      "failedAttempts": 200
+    },
+    "C": {
+      "landed": 100,
+      "clean": 100,
+      "duplicated": 0,
+      "none": 0,
+      "outcomeKnown": 99,
+      "hashLeaked": 0,
+      "failedAttempts": 2
+    }
+  }
+}

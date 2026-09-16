@@ -1,0 +1,206 @@
+{
+ "version": "0.9.1",
+ "totals": {
+  "sending": 28,
+  "noSimulation": 26,
+  "bare": 21
+ },
+ "rows": [
+  {
+   "provider": "across",
+   "fn": "bridgeToken",
+   "sim": false,
+   "pre": true,
+   "lines": 164
+  },
+  {
+   "provider": "basename",
+   "fn": "register",
+   "sim": false,
+   "pre": false,
+   "lines": 47
+  },
+  {
+   "provider": "compound",
+   "fn": "borrow",
+   "sim": false,
+   "pre": false,
+   "lines": 37
+  },
+  {
+   "provider": "compound",
+   "fn": "repay",
+   "sim": false,
+   "pre": true,
+   "lines": 40
+  },
+  {
+   "provider": "compound",
+   "fn": "supply",
+   "sim": false,
+   "pre": true,
+   "lines": 51
+  },
+  {
+   "provider": "compound",
+   "fn": "withdraw",
+   "sim": false,
+   "pre": true,
+   "lines": 40
+  },
+  {
+   "provider": "erc20",
+   "fn": "transfer",
+   "sim": false,
+   "pre": false,
+   "lines": 35
+  },
+  {
+   "provider": "erc721",
+   "fn": "mint",
+   "sim": false,
+   "pre": false,
+   "lines": 18
+  },
+  {
+   "provider": "erc721",
+   "fn": "transfer",
+   "sim": false,
+   "pre": false,
+   "lines": 18
+  },
+  {
+   "provider": "flaunch",
+   "fn": "_buyFlaunchCoin",
+   "sim": true,
+   "pre": false,
+   "lines": 120
+  },
+  {
+   "provider": "flaunch",
+   "fn": "flaunch",
+   "sim": false,
+   "pre": false,
+   "lines": 70
+  },
+  {
+   "provider": "flaunch",
+   "fn": "sellCoin",
+   "sim": true,
+   "pre": true,
+   "lines": 119
+  },
+  {
+   "provider": "jupiter",
+   "fn": "swap",
+   "sim": false,
+   "pre": false,
+   "lines": 44
+  },
+  {
+   "provider": "moonwell",
+   "fn": "mint",
+   "sim": false,
+   "pre": false,
+   "lines": 80
+  },
+  {
+   "provider": "moonwell",
+   "fn": "redeem",
+   "sim": false,
+   "pre": false,
+   "lines": 46
+  },
+  {
+   "provider": "morpho",
+   "fn": "deposit",
+   "sim": false,
+   "pre": false,
+   "lines": 33
+  },
+  {
+   "provider": "morpho",
+   "fn": "withdraw",
+   "sim": false,
+   "pre": false,
+   "lines": 21
+  },
+  {
+   "provider": "spl",
+   "fn": "transfer",
+   "sim": false,
+   "pre": true,
+   "lines": 46
+  },
+  {
+   "provider": "vaultsfyi",
+   "fn": "claim",
+   "sim": false,
+   "pre": false,
+   "via": "utils.executeActions"
+  },
+  {
+   "provider": "vaultsfyi",
+   "fn": "deposit",
+   "sim": false,
+   "pre": false,
+   "via": "utils.executeActions"
+  },
+  {
+   "provider": "vaultsfyi",
+   "fn": "redeem",
+   "sim": false,
+   "pre": false,
+   "via": "utils.executeActions"
+  },
+  {
+   "provider": "wallet",
+   "fn": "nativeTransfer",
+   "sim": false,
+   "pre": false,
+   "lines": 19
+  },
+  {
+   "provider": "weth",
+   "fn": "unwrapEth",
+   "sim": false,
+   "pre": false,
+   "lines": 17
+  },
+  {
+   "provider": "weth",
+   "fn": "wrapEth",
+   "sim": false,
+   "pre": false,
+   "lines": 17
+  },
+  {
+   "provider": "wow",
+   "fn": "buyToken",
+   "sim": false,
+   "pre": false,
+   "lines": 31
+  },
+  {
+   "provider": "wow",
+   "fn": "createToken",
+   "sim": false,
+   "pre": false,
+   "lines": 25
+  },
+  {
+   "provider": "wow",
+   "fn": "sellToken",
+   "sim": false,
+   "pre": false,
+   "lines": 30
+  },
+  {
+   "provider": "zora",
+   "fn": "createCoin",
+   "sim": false,
+   "pre": false,
+   "lines": 56
+  }
+ ]
+}
