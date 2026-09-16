@@ -28,7 +28,10 @@ const truth = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
 const TRANSFER = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
 const line = (c = "-") => console.log(c.repeat(74));
-const pause = (ms = 1200) => new Promise((r) => setTimeout(r, ms));
+// Untuk perekaman, penonton butuh waktu membaca. Default cepat supaya juri
+// yang menjalankannya sendiri tidak menunggu; DEMO_PACE=slow untuk kamera.
+const PACE = process.env.DEMO_PACE === "slow" ? 3 : 1;
+const pause = (ms = 1200) => new Promise((r) => setTimeout(r, ms * PACE));
 
 async function countTransfers(from: Hex, value: bigint, fromBlock: bigint) {
   const logs = await truth.getLogs({ address: TOKEN, event: TRANSFER, args: { from, to: TO }, fromBlock, toBlock: "latest" });
@@ -120,8 +123,11 @@ async function main() {
   line("=");
   console.log("BAGIAN 3 — gerbang simulasi");
   line("=");
-  console.log("\nAgent meminta nominal yang mustahil. Tidak ada gas yang terpakai.\n");
-  console.log(await kh.transfer(wallet as never, { ...args, amount: "999999", taskId: `demo-${stamp}-big` } as never));
+  // 50 USDC: di atas saldo dompet (~5 USDC) tapi di bawah batas 100 USD, jadi
+  // yang memblokir adalah SIMULASI yang memprediksi revert, bukan aturan batas.
+  console.log("\nAgent meminta 50 USDC. Saldo dompet cuma sekitar 5.\n");
+  console.log(await kh.transfer(wallet as never, { ...args, amount: "50", taskId: `demo-${stamp}-over` } as never));
+  console.log("\n    Simulasi menangkapnya. Nol transaksi, nol gas.");
 
   line("=");
   const landedC = await countTransfers(khAddr, BigInt(Math.round(Number(amtC) * 1e6)), startBlock);
