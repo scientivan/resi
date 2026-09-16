@@ -1,6 +1,6 @@
 {
   "name": "agentkit-keeperhub",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "KeeperHub action provider for Coinbase AgentKit: simulate-gated onchain execution with idempotent retries and chain-verified receipts an agent can query after a failure.",
   "keywords": [
     "coinbase",
