@@ -6,6 +6,8 @@ payment in 0 of them. Through this KeeperHub provider, 99 of 100, with receipts
 re-read from chain. AgentKit paid twice in 47 of 47 comparable trials; this
 provider in 0 of 100.**
 
+Demo video (4:34): https://youtu.be/ZfeXA-wVe74
+
 The same campaign on AgentKit 0.9.1 gave the same answer: 0 / 100, 99 / 100,
 50 of 50.
 
