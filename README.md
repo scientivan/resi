@@ -39,6 +39,11 @@ zero npm packages, zero mentions in either issue tracker.
 Adapters exist for LangChain, ElizaOS, OpenClaw and n8n. AgentKit — the largest,
 at 40,037 npm downloads a month — has none.
 
+**Upstream:** the provider is proposed into AgentKit itself as
+[coinbase/agentkit#1504](https://github.com/coinbase/agentkit/pull/1504)
+(`typescript/agentkit/src/action-providers/keeperhub/`, 22 tests, lint clean).
+Open, not yet reviewed. Until it merges, use the npm package.
+
 ## The problem
 
 After a transfer, three things can be true:
@@ -221,10 +226,10 @@ sent. If you run the harness, leave `RPC_URL` unset.
 - No client-side retry policy, which cost the one unresolved trial in each run.
 - Base Sepolia only.
 - Failure injection is induced, not sampled from production.
-- No upstream contribution. We probed for issues and found that everything we
-  found was already tracked — `keeperhub#1959`, `#2004`, `#2371`,
-  `coinbase/agentkit#1483`, `#1408`. Reporting duplicates would have wasted
-  maintainer time, so we filed nothing.
+- Not merged into AgentKit yet. The provider is proposed as
+  [coinbase/agentkit#1504](https://github.com/coinbase/agentkit/pull/1504), open
+  and unreviewed. No new issues filed: everything we found was already tracked
+  (`keeperhub#1959`, `#2004`, `#2371`, `coinbase/agentkit#1483`, `#1408`).
 
 ## Run it
 
