@@ -85,6 +85,7 @@ function amountFor(arm: Arm, trial: number) {
  * Perilaku KeeperHub dan CDP benar; harness-nya yang harus menambahkan nonce.
  */
 const RUN_ID = process.env.RUN_ID ?? String(Date.now());
+const ARMS = (process.env.ARMS ?? "ABC").toUpperCase();
 
 function stableKey(taskId: string, amountText: string): string {
   const canonical = [RUN_ID, taskId, CFG.chainId, CFG.recipient, amountText, CFG.token].join("|");
@@ -273,16 +274,22 @@ async function main() {
     const b = amountFor("B", i);
     const c = amountFor("C", i);
 
-    setInject(true);
-    await runAgentKitArm("A", wallet, i, a.raw, a.text);
-    setInject(false);
+    // ARMS=C re-measures the provider alone (e.g. after a provider change),
+    // without re-running the AgentKit baselines.
+    if (ARMS.includes("A")) {
+      setInject(true);
+      await runAgentKitArm("A", wallet, i, a.raw, a.text);
+      setInject(false);
+    }
 
-    const keyB = stableKey(`m1-${i}`, b.text);
-    setInject(true);
-    await runAgentKitArm("B", withCdpIdempotency(wallet, () => keyB) as CdpEvmWalletProvider, i, b.raw, b.text);
-    setInject(false);
+    if (ARMS.includes("B")) {
+      const keyB = stableKey(`m1-${i}`, b.text);
+      setInject(true);
+      await runAgentKitArm("B", withCdpIdempotency(wallet, () => keyB) as CdpEvmWalletProvider, i, b.raw, b.text);
+      setInject(false);
+    }
 
-    await runKeeperHubArm(wallet, i, c.text, `${RUN_ID}-m1-${i}`);
+    if (ARMS.includes("C")) await runKeeperHubArm(wallet, i, c.text, `${RUN_ID}-m1-${i}`);
     process.stdout.write(".");
   }
   console.log("\n");

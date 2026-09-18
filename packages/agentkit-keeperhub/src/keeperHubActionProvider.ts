@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { ActionProvider, CreateAction, type Network, type EvmWalletProvider } from "@coinbase/agentkit";
+// EvmWalletProvider must be a VALUE import: @CreateAction reads the parameter
+// type from decorator metadata to decide whether to pass the wallet. With a
+// type-only import the metadata is `Function`, and AgentKit calls the action
+// without the wallet.
+import { ActionProvider, CreateAction, EvmWalletProvider, type Network } from "@coinbase/agentkit";
 import { KeeperHubClient, deriveIdempotencyKey } from "./keeperHubClient.js";
 import { TransferSchema, GetExecutionStatusSchema } from "./schemas.js";
 import { NETWORK_ID_TO_CHAIN_ID, SUPPORTED_CHAIN_IDS } from "./constants.js";
@@ -9,6 +13,12 @@ export interface KeeperHubActionProviderConfig {
   apiKey?: string;
   baseUrl?: string;
   timeoutMs?: number;
+  /**
+   * Extra attempts for get_execution_status, and for a transfer answered with
+   * 409 "already being processed" (same key, so it cannot execute twice). Default 3.
+   */
+  statusRetries?: number;
+  retryDelayMs?: number;
 }
 
 /**
@@ -31,7 +41,14 @@ export interface KeeperHubActionProviderConfig {
  */
 export class KeeperHubActionProvider extends ActionProvider<EvmWalletProvider> {
   readonly #client: KeeperHubClient;
+  readonly #inProgressRetries: number;
+  readonly #retryDelayMs: number;
 
+  /**
+   * Creates the provider.
+   *
+   * @param config - API key (default: KEEPERHUB_API_KEY), base URL, timeout and retry settings
+   */
   constructor(config: KeeperHubActionProviderConfig = {}) {
     super("keeperhub", []);
     const apiKey = config.apiKey ?? process.env.KEEPERHUB_API_KEY ?? "";
@@ -39,7 +56,11 @@ export class KeeperHubActionProvider extends ActionProvider<EvmWalletProvider> {
       apiKey,
       baseUrl: config.baseUrl,
       timeoutMs: config.timeoutMs,
+      statusRetries: config.statusRetries,
+      retryDelayMs: config.retryDelayMs,
     });
+    this.#inProgressRetries = config.statusRetries ?? 3;
+    this.#retryDelayMs = config.retryDelayMs ?? 1_000;
   }
 
   @CreateAction({
@@ -74,6 +95,13 @@ the taskId.
 `,
     schema: TransferSchema,
   })
+  /**
+   * Simulates, then executes a transfer once through KeeperHub.
+   *
+   * @param walletProvider - Used only to read the current network
+   * @param args - Recipient, amount, optional token and the taskId of the work
+   * @returns A message with the executionId, or why nothing was sent
+   */
   async transfer(
     walletProvider: EvmWalletProvider,
     args: z.infer<typeof TransferSchema>,
@@ -116,7 +144,15 @@ the taskId.
       tokenAddress: args.tokenAddress,
     });
 
-    const exec = await this.#client.executeTransfer(body, idempotencyKey);
+    // A 409 other than idempotency_conflict means the same key is still being
+    // processed ("Retry the same key shortly; do not rotate it"). This cost the
+    // unresolved trial in the 0.9.1 run: we gave up and had no executionId.
+    // Retrying the SAME key is safe: it cannot execute twice.
+    let exec = await this.#client.executeTransfer(body, idempotencyKey);
+    for (let i = 0; i < this.#inProgressRetries && exec.httpStatus === 409 && exec.code !== "idempotency_conflict"; i++) {
+      await new Promise((r) => setTimeout(r, this.#retryDelayMs * 2 ** i));
+      exec = await this.#client.executeTransfer(body, idempotencyKey);
+    }
 
     if (exec.code === "idempotency_conflict") {
       return `Error: taskId "${args.taskId}" was already used for work with different details. Use a new taskId for different work, and the same taskId only to retry the same work.`;
@@ -158,11 +194,26 @@ taskId to get it back (valid for 24 hours).
 `,
     schema: GetExecutionStatusSchema,
   })
+  /**
+   * Reports the outcome of an execution with receipts re-read from chain.
+   *
+   * @param _walletProvider - Unused
+   * @param args - The executionId to ask about
+   * @returns A message with the verified outcome, or that it is not yet known
+   */
   async getExecutionStatus(
     _walletProvider: EvmWalletProvider,
     args: z.infer<typeof GetExecutionStatusSchema>,
   ): Promise<string> {
     const st = await this.#client.getStatus(args.executionId);
+    if (st.httpStatus === 0) {
+      // No answer after every retry. That says nothing about the transfer.
+      return [
+        `executionId: ${args.executionId}`,
+        `KeeperHub did not answer after ${st.attempts} attempts (${st.error}).`,
+        `The outcome is NOT YET KNOWN, which is not the same as failed. Do not resend. Ask again later.`,
+      ].join("\n");
+    }
     if (st.httpStatus >= 400) {
       return `Error: cannot read status for ${args.executionId} (HTTP ${st.httpStatus}).`;
     }

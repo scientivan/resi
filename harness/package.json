@@ -10,7 +10,8 @@
     "verify": "for d in results/agentkit-*/; do echo \"$d\"; ./scripts/verify-receipts.sh \"$d/receipts.json\"; done",
     "demo": "tsx scripts/demo.ts",
     "demo:slow": "DEMO_PACE=slow tsx scripts/demo.ts",
-    "finale": "python3 -m http.server 8777 --bind 127.0.0.1"
+    "finale": "python3 -m http.server 8777 --bind 127.0.0.1",
+    "agent": "tsx scripts/agent-demo.ts"
   },
   "dependencies": {
     "@coinbase/agentkit": "^0.10.4",

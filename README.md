@@ -41,7 +41,7 @@ at 40,037 npm downloads a month — has none.
 
 **Upstream:** the provider is proposed into AgentKit itself as
 [coinbase/agentkit#1504](https://github.com/coinbase/agentkit/pull/1504)
-(`typescript/agentkit/src/action-providers/keeperhub/`, 22 tests, lint clean).
+(`typescript/agentkit/src/action-providers/keeperhub/`, 29 tests, lint clean).
 Open, not yet reviewed. Until it merges, use the npm package.
 
 ## The problem
@@ -142,6 +142,57 @@ So the honest claim is not *"KeeperHub prevents double spends and AgentKit
 doesn't."* It is: **the prevention lives in CDP but AgentKit does not expose it,
 and reconciliation exists in neither.**
 
+## An LLM agent, end to end
+
+The campaign calls the actions from a script. To check that a model uses them
+the way they are meant to be used, `npm run agent` gives Gemini (`gemini-3.6-flash`)
+one instruction, *pay invoice INV-…*, and the two Resi actions as tools through
+`AgentKit.getActions()`. The first transfer really executes, but its response is
+replaced with a timeout before the model sees it.
+
+What the model did, from
+[`harness/results/agent-demo/INV-1789714513261.json`](harness/results/agent-demo/INV-1789714513261.json):
+
+1. Called `transfer` with the invoice number as `taskId`. Saw only "request timed out".
+2. Called `transfer` again with the **same** `taskId`. Got the same executionId
+   (`bbatyqkj6y45jce5lrfa2`): replayed, not sent again.
+3. Called `get_execution_status`, got a receipt re-read from chain, and reported
+   the invoice as paid, citing the hash and block.
+
+On chain: **one** transfer for the invoice,
+[`0x1ec51761…493a`](https://sepolia.basescan.org/tx/0x1ec517610c97e6e34201fb71a8f4c2090149005ce6a953d32e17a47aa988493a),
+block 46973119. One run, one model: it shows the path works, not how often a
+model takes it.
+
+This run also found a real bug. In 0.1.2 and 0.1.3 `EvmWalletProvider` was a
+type-only import, so the decorator metadata was empty and AgentKit called the
+actions **without the wallet** (`walletProvider.getNetwork is not a function`).
+The measurements called the methods directly and were not affected; nothing that
+went through `getActions()` could have worked. Fixed in 0.1.4, with a test that
+goes through `getActions()` and fails without the fix.
+
+The same run in KeeperHub's own dashboard (Analytics, filtered by executionId):
+
+![KeeperHub run for the agent's execution](docs/keeperhub-agent-run.jpg)
+
+For direct executions the dashboard records status, duration, network and gas,
+but shows "No step logs available"; the chain-verified receipts come from the
+status API, not from this view.
+
+## After the fixes: arm C again, provider 0.1.3
+
+0.1.3 added the retries whose absence cost trial 100 in both runs: a transfer
+answered with `409` "already being processed" is retried with the same key, and
+`get_execution_status` retries on timeout, network error, 429 and 5xx behind a
+deadline that holds even if fetch ignores its abort signal.
+
+Arm C re-run alone (`ARMS=C TRIALS=50`), AgentKit 0.10.4, from block 46973014:
+**50 / 50 outcome known, 0 duplicated, 50 / 50 hashes verified onchain**
+([`harness/results/agentkit-0.10.4-resi-0.1.3-armC/`](harness/results/agentkit-0.10.4-resi-0.1.3-armC/);
+arms A and B show zero because they were not run). Honest limit: no status call
+hung in this run (slowest 1.04 s), so the retry path was exercised by unit tests,
+not by this run. The 99 / 100 above stands as measured.
+
 ## A failure we did not plan
 
 In the 0.9.1 run, 106 attempts failed with `NetworkError: certificate has
@@ -185,10 +236,11 @@ value and keeps the receipt.
 
 | Path | What it is |
 |---|---|
-| `packages/agentkit-keeperhub/` | The product. npm package, 22 tests |
+| `packages/agentkit-keeperhub/` | The product. npm package, 29 tests |
 | `harness/scripts/campaign.ts` | The three-arm campaign, adapts to the installed AgentKit |
 | `harness/scripts/_bootstrap.ts` | Failure injection at the fetch layer |
 | `harness/scripts/demo.ts` | `npm run demo`, about 30 seconds, repeatable |
+| `harness/scripts/agent-demo.ts` | `npm run agent`: an LLM decides, through `AgentKit.getActions()` |
 | `harness/scripts/survey-preflight.py` | Counts pre-flight checks across AgentKit |
 | `harness/results/agentkit-<version>/receipts.json` | Every transaction hash, per run |
 | `harness/results/agentkit-<version>/attempts.json` | Raw per-attempt log, including failures |
@@ -223,7 +275,8 @@ sent. If you run the harness, leave `RPC_URL` unset.
 
 - Only `transfer` is wrapped. Contract calls and protocol actions are not.
 - No Solana.
-- No client-side retry policy, which cost the one unresolved trial in each run.
+- Retries were added in 0.1.3 after the two full runs; the full three-arm campaign
+  was not repeated, only arm C (50 / 50).
 - Base Sepolia only.
 - Failure injection is induced, not sampled from production.
 - Not merged into AgentKit yet. The provider is proposed as
@@ -234,9 +287,10 @@ sent. If you run the harness, leave `RPC_URL` unset.
 ## Run it
 
 ```bash
-cd packages/agentkit-keeperhub && npm install && npm test    # 22 tests
+cd packages/agentkit-keeperhub && npm install && npm test    # 29 tests
 cd ../../harness && npm install && cp .env.example .env      # fill in keys
 npm run demo                                                  # ~30s, repeatable
+GEMINI_API_KEY=... npm run agent                              # an LLM pays an invoice
 TRIALS=100 npm run campaign                                   # writes results/agentkit-<version>/
 npm run verify                                                # check every hash, every run
 ```

@@ -154,17 +154,19 @@ chain-state problem may be retried later.
   Naturally occurring failures did appear: `NetworkError: certificate has
   expired` (106 attempts in the 0.9.1 run, 85 in the 0.10.4 run) and `Wallet
   authentication error` (14, 0.10.4 run). They are reported separately.
-- **No retry policy of its own.** It relies on KeeperHub's managed retries and
-  does not add a client-side one. This cost one trial out of 100 in each run.
-  In the 0.9.1 run the client timed out at 60s, the retry met
-  `409 idempotency_in_progress` ("Retry the same key shortly; do not rotate
-  it."), and because neither attempt returned an `executionId`, the caller had
-  no handle to reconcile with — even though the transfer did land onchain. The
-  right fix is to honour that 409 by retrying the same key after a short delay,
-  and to surface the execution even when the first response is lost. In the
-  0.10.4 run the transfer returned its `executionId` and landed, but the single
-  `get_execution_status` call hung for 925 seconds before aborting (the timeout
-  is 60s; not yet explained) and was not retried. Not done.
+- **0.1.2 and 0.1.3 did not work through `AgentKit.getActions()`.** A
+  type-only import of `EvmWalletProvider` left the decorator metadata empty, so
+  AgentKit called the actions without the wallet. Every measurement here called
+  the methods directly and was not affected; the first LLM agent run found it.
+  Fixed in 0.1.4, with a test that goes through `getActions()`.
+- **Retries added in 0.1.3, re-measured on a smaller run.** Both published runs used
+  0.1.2, which had no retry policy, and that cost one trial out of 100 in each.
+  0.1.3 fixes both causes: a transfer answered with `409` "already being
+  processed" is retried with the same key (0.9.1 run), and `get_execution_status`
+  retries on timeout, network error, 429 and 5xx behind a deadline that holds
+  even if fetch ignores its abort signal (0.10.4 run, where one call hung 925 s
+  against a 60 s timeout). Why that call hung is still not explained. Covered by
+  unit tests; the 99 / 100 figures above are from 0.1.2 and stand as measured.
 - **Tested on Base Sepolia only.** Other supported chains are declared but
   unexercised.
 

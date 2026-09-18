@@ -48,8 +48,10 @@ let suppressed = 0;
 
 process.on("unhandledRejection", (reason) => {
   const msg = String(reason);
+  // Two shapes seen: an HTTP error status, and a network error (e.g. an expired
+  // certificate) thrown by fetch inside the same function.
   const isAgentKitAnalytics =
-    /HTTP error! status: \d+/.test(msg) &&
+    (/HTTP error! status: \d+/.test(msg) || /fetch failed/.test(msg)) &&
     String((reason as Error)?.stack ?? "").includes("sendAnalyticsEvent");
 
   if (isAgentKitAnalytics) {
