@@ -88,21 +88,30 @@ Read each line so it starts at its timestamp. The subtitles in the video show th
 - `3:15.1` Guess it didn't, and without a key it pays twice.
 - `3:19.7` Only an answer from chain ends the guessing.
 
-## 3:24.1 · What we want you to know
+## 3:24.1 · A real model
 
-- `3:24.1` The failure is induced, not sampled from production.
-- `3:27.8` The cheap fix does stop double payments. It can't say what happened.
-- `3:33.1` And it's 99, not 100: our one status call hung, and we never retried.
+- `3:25.4` Last, a real model makes the calls, not a script.
+- `3:30.0` It is asked to pay one invoice.
+- `3:33.3` The first transfer goes out, but the answer is lost.
+- `3:37.9` It retries with the same taskId, and gets the same execution back.
+- `3:43.2` Then it asks what happened, and gets a receipt from chain.
+- `3:48.1` One invoice, one transfer.
 
-## 3:39.8 · Check it yourself
+## 3:51.5 · What we want you to know
 
-- `3:39.8` Don't trust these numbers. Check them.
-- `3:42.7` npm run verify re-reads all 625 hashes from chain.
-- `3:46.9` 625 succeeded. None missing.
-- `3:49.2` And 22 tests cover the provider.
+- `3:51.5` The failure is induced, not sampled from production.
+- `3:55.2` The cheap fix does stop double payments. It can't say what happened.
+- `4:00.5` And it's 99, not 100: our one status call hung, and we never retried.
 
-## 3:52.7 · Resi
+## 4:07.1 · Check it yourself
 
-- `3:52.7` Resi. A receipt for every payment your agent makes.
-- `3:56.8` Transfers only, on Base Sepolia, for now.
-- `4:00.2` Install it, run the demo, and check every hash.
+- `4:07.1` Don't trust these numbers. Check them.
+- `4:10.1` npm run verify re-reads all 625 hashes from chain.
+- `4:14.2` 625 succeeded. None missing.
+- `4:16.6` And 22 tests cover the provider.
+
+## 4:20.1 · Resi
+
+- `4:20.1` Resi. A receipt for every payment your agent makes.
+- `4:24.2` Transfers only, on Base Sepolia, for now.
+- `4:27.6` Install it, run the demo, and check every hash.

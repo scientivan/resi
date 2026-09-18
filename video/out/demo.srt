@@ -223,41 +223,65 @@ Guess it didn't, and without a key it pays twice.
 Only an answer from chain ends the guessing.
 
 57
-00:03:24,133 --> 00:03:27,867
-The failure is induced, not sampled from production.
+00:03:25,467 --> 00:03:30,000
+Last, a real model makes the calls, not a script.
 
 58
-00:03:27,867 --> 00:03:33,200
-The cheap fix does stop double payments. It can't say what happened.
+00:03:30,000 --> 00:03:33,367
+It is asked to pay one invoice.
 
 59
-00:03:33,200 --> 00:03:39,300
-And it's 99, not 100: our one status call hung, and we never retried.
+00:03:33,367 --> 00:03:37,900
+The first transfer goes out, but the answer is lost.
 
 60
-00:03:39,800 --> 00:03:42,767
-Don't trust these numbers. Check them.
+00:03:37,900 --> 00:03:43,233
+It retries with the same taskId, and gets the same execution back.
 
 61
-00:03:42,767 --> 00:03:46,900
-npm run verify re-reads all 625 hashes from chain.
+00:03:43,233 --> 00:03:48,167
+Then it asks what happened, and gets a receipt from chain.
 
 62
-00:03:46,900 --> 00:03:49,233
-625 succeeded. None missing.
+00:03:48,167 --> 00:03:50,833
+One invoice, one transfer.
 
 63
-00:03:49,233 --> 00:03:52,233
-And 22 tests cover the provider.
+00:03:51,500 --> 00:03:55,233
+The failure is induced, not sampled from production.
 
 64
-00:03:52,733 --> 00:03:56,867
-Resi. A receipt for every payment your agent makes.
+00:03:55,233 --> 00:04:00,567
+The cheap fix does stop double payments. It can't say what happened.
 
 65
-00:03:56,867 --> 00:04:00,233
-Transfers only, on Base Sepolia, for now.
+00:04:00,567 --> 00:04:06,667
+And it's 99, not 100: our one status call hung, and we never retried.
 
 66
-00:04:00,233 --> 00:04:04,367
+00:04:07,167 --> 00:04:10,133
+Don't trust these numbers. Check them.
+
+67
+00:04:10,133 --> 00:04:14,267
+npm run verify re-reads all 625 hashes from chain.
+
+68
+00:04:14,267 --> 00:04:16,600
+625 succeeded. None missing.
+
+69
+00:04:16,600 --> 00:04:19,600
+And 22 tests cover the provider.
+
+70
+00:04:20,100 --> 00:04:24,233
+Resi. A receipt for every payment your agent makes.
+
+71
+00:04:24,233 --> 00:04:27,600
+Transfers only, on Base Sepolia, for now.
+
+72
+00:04:27,600 --> 00:04:31,733
 Install it, run the demo, and check every hash.

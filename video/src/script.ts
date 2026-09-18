@@ -92,6 +92,15 @@ const CUES_BY_SCENE: Array<[id: string, title: string, cues: CueIn[], tail?: num
     [75, "Guess it didn't, and without a key it pays twice."],
     [85, "Only an answer from chain ends the guessing."],
   ], 20],
+  ["agent", "A real model", [
+    [20, ""],
+    "Last, a real model makes the calls, not a script.",
+    "It is asked to pay one invoice.",
+    [95, "The first transfer goes out, but the answer is lost."],
+    [100, "It retries with the same taskId, and gets the same execution back."],
+    [95, "Then it asks what happened, and gets a receipt from chain."],
+    [80, "One invoice, one transfer."],
+  ], 20],
   ["honest", "What we want you to know", [
     [95, "The failure is induced, not sampled from production."],
     [95, "The cheap fix does stop double payments. It can't say what happened."],
@@ -160,6 +169,7 @@ const ACTIONS_BY_SCENE: Record<string, Array<[number, number | null, string]>> =
   demo3: [[0.3, null, "npm run demo · part 3 · same run"]],
   measure: [[0.3, null, "results/agentkit-0.10.4 · from block 46890768"]],
   why: [[2.5, null, "results/agentkit-0.10.4/attempts.json · arms A and B"]],
+  agent: [[0.3, null, "npm run agent · gemini-3.6-flash · run of 18 Sep 2026"]],
   verify: [[2.3, null, "npm run verify · took 4m 21s, shortened here"]],
 };
 

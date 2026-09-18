@@ -296,6 +296,52 @@ export const Why: React.FC<P> = ({ durationInFrames }) => {
   );
 };
 
+// ---------------------------------------------------------------- 8c. AGENT
+// Lines condensed from harness/results/agent-demo/INV-1789714513261.json; "…" marks a cut.
+const AGENT_LINES = [
+  "> Pay invoice INV-1789714513261: 0.005261 USDC to 0x33b1…C44D on Base Sepolia.",
+  " ",
+  '→ transfer { taskId: "INV-1789714513261", amount: "0.005261", … }',
+  "← Error: request timed out after 60s; no response was received.",
+  " ",
+  '→ transfer { taskId: "INV-1789714513261", amount: "0.005261", … }',
+  "← Transfer handed to KeeperHub.  executionId: bbatyqkj6y45jce5lrfa2",
+  " ",
+  '→ get_execution_status { executionId: "bbatyqkj6y45jce5lrfa2" }',
+  "← Verified onchain result: 0x1ec51761…493a | success | block 46973119",
+  "← Conclusion: the transaction SUCCEEDED. Do not resend this work.",
+  " ",
+  "agent: Invoice INV-1789714513261 … has been successfully paid. I know this because",
+  "       the transaction was verified directly on-chain via KeeperHub …",
+];
+export const Agent: React.FC<P> = ({ durationInFrames }) => {
+  const q = (n: number) => cueAt("agent", n);
+  const aTone = (l: string): Tone => {
+    if (/timed out/.test(l)) return "bad";
+    if (/SUCCEEDED|Verified onchain|successfully paid|verified directly/.test(l)) return "good";
+    if (/^→|^>/.test(l)) return "note";
+    return "plain";
+  };
+  const schedule = [q(1) + 10, q(1) + 11, q(2) + 20, q(3) + 10, q(3) + 60, q(4) + 10, q(4) + 40, q(4) + 60, q(5) + 10, q(5) + 40, q(5) + 55, q(5) + 70, q(6) + 5, q(6) + 8];
+  return (
+    <Stage durationInFrames={durationInFrames} label="an LLM agent pays an invoice · the first response is lost">
+      <div style={{ display: "flex", gap: 28, alignItems: "flex-end" }}>
+        <div style={{ flex: 1 }}>
+          <Terminal title="gemini-3.6-flash · tools: transfer, get_execution_status" command="npm run agent" typeFrom={4} typeFrames={16} lines={AGENT_LINES} schedule={schedule} tone={aTone} fontSize={23} height={600} />
+        </div>
+        <Show at={q(6) + 20} style={{ width: 300, flexShrink: 0 }}>
+          <div style={{ padding: "22px 26px", borderRadius: 12, border: `1px solid ${c.borderStrong}`, backgroundColor: c.surface }}>
+            <div style={mono(20, c.faint, { letterSpacing: ".12em", textTransform: "uppercase", lineHeight: 1.4 })}>on chain, for this invoice</div>
+            <Pulse at={q(6) + 30}><div style={mono(38, c.clear, { marginTop: 8, whiteSpace: "nowrap" })}>1 transfer</div></Pulse>
+            <div style={mono(20, c.muted, { marginTop: 6 })}>0x1ec51761…493a</div>
+            <div style={mono(20, c.muted)}>block 46973119</div>
+          </div>
+        </Show>
+      </div>
+    </Stage>
+  );
+};
+
 // ---------------------------------------------------------------- 9. HONEST
 export const Honest: React.FC<P> = ({ durationInFrames }) => {
   const frame = useCurrentFrame();

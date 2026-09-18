@@ -5,11 +5,11 @@ import { SCENES, scene } from "./script";
 import { c } from "./theme";
 import { Subtitles } from "./components/Subtitles";
 import { ActionCaption } from "./components/ActionCaption";
-import { Hook, Stakes, Why, Gap, Problem, Demo1, Demo2, Demo3, Design, Measure, Honest, Verify, Close } from "./scenes/all";
+import { Hook, Stakes, Why, Agent, Gap, Problem, Demo1, Demo2, Demo3, Design, Measure, Honest, Verify, Close } from "./scenes/all";
 
 const BY_ID: Record<string, React.FC<{ durationInFrames: number }>> = {
   hook: Hook, stakes: Stakes, gap: Gap, problem: Problem, demo1: Demo1, demo2: Demo2, demo3: Demo3,
-  design: Design, measure: Measure, why: Why, honest: Honest, verify: Verify, close: Close,
+  design: Design, measure: Measure, why: Why, agent: Agent, honest: Honest, verify: Verify, close: Close,
 };
 
 export const Demo: React.FC = () => (
