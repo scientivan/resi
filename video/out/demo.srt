@@ -1,0 +1,263 @@
+1
+00:00:01,333 --> 00:00:04,300
+An AI agent sends a payment.
+
+2
+00:00:04,300 --> 00:00:08,033
+The network drops before the answer comes back.
+
+3
+00:00:08,033 --> 00:00:10,200
+Did the money move?
+
+4
+00:00:10,200 --> 00:00:14,333
+Across 100 trials, AgentKit could not tell. Not once.
+
+5
+00:00:14,333 --> 00:00:17,300
+Through Resi, it could. 99 times.
+
+6
+00:00:17,633 --> 00:00:20,600
+This is not a thought experiment.
+
+7
+00:00:20,600 --> 00:00:26,300
+Agents already pay on their own: 75 million x402 payments in 30 days.
+
+8
+00:00:26,300 --> 00:00:29,267
+24 million dollars, moved by software.
+
+9
+00:00:29,267 --> 00:00:33,000
+Coinbase AgentKit was downloaded 40,000 times last month.
+
+10
+00:00:33,000 --> 00:00:36,733
+Its own issue tracker already names the failure:
+
+11
+00:00:36,733 --> 00:00:42,067
+a retry after a lost response sends the transfer twice. Still open.
+
+12
+00:00:42,567 --> 00:00:45,533
+Coinbase AgentKit ships 47 action providers.
+
+13
+00:00:45,533 --> 00:00:48,500
+None of them route through KeeperHub.
+
+14
+00:00:48,500 --> 00:00:52,633
+Resi is that provider. One npm package, two actions.
+
+15
+00:00:52,967 --> 00:00:56,700
+After a transfer, three things can be true.
+
+16
+00:00:56,700 --> 00:00:58,100
+It succeeded.
+
+17
+00:00:58,100 --> 00:00:59,500
+It failed.
+
+18
+00:00:59,500 --> 00:01:03,633
+Or it went out, and the answer was lost.
+
+19
+00:01:03,633 --> 00:01:07,367
+AgentKit reports that third state as a failure,
+
+20
+00:01:07,367 --> 00:01:11,500
+with no id you can ever ask about again.
+
+21
+00:01:12,000 --> 00:01:16,133
+This is a real run. Receipt polling is blocked.
+
+22
+00:01:16,133 --> 00:01:19,867
+The agent gets an error string. Nothing else.
+
+23
+00:01:19,867 --> 00:01:23,600
+So it does the reasonable thing, and retries.
+
+24
+00:01:23,600 --> 00:01:26,967
+On chain: two transfers, for one job.
+
+25
+00:01:26,967 --> 00:01:29,133
+The money left twice.
+
+26
+00:01:29,633 --> 00:01:32,200
+The same job, through Resi.
+
+27
+00:01:32,200 --> 00:01:35,567
+It returns an executionId, and the taskId.
+
+28
+00:01:35,567 --> 00:01:38,533
+The agent retries, exactly as before.
+
+29
+00:01:38,533 --> 00:01:41,533
+Same executionId. Replayed, not sent again.
+
+30
+00:01:41,533 --> 00:01:44,500
+Then it asks what really happened,
+
+31
+00:01:44,500 --> 00:01:47,867
+and gets a receipt re-read from chain.
+
+32
+00:01:47,867 --> 00:01:49,867
+One transfer. Confirmed.
+
+33
+00:01:50,367 --> 00:01:54,900
+Last, the agent asks for 50 USDC it doesn't have.
+
+34
+00:01:54,900 --> 00:01:58,267
+KeeperHub simulates first, and predicts the revert.
+
+35
+00:01:58,267 --> 00:02:00,833
+Nothing broadcast. No gas spent.
+
+36
+00:02:01,333 --> 00:02:04,300
+The model proposes: recipient, amount, taskId.
+
+37
+00:02:04,300 --> 00:02:08,433
+Code derives the idempotency key, and runs the simulation.
+
+38
+00:02:08,433 --> 00:02:11,400
+The model cannot switch simulation off.
+
+39
+00:02:11,400 --> 00:02:14,767
+KeeperHub executes once, and keeps the receipt.
+
+40
+00:02:15,267 --> 00:02:19,000
+One demo proves little. So we measured it.
+
+41
+00:02:19,000 --> 00:02:23,533
+100 trials per arm, the same failure, on Base Sepolia.
+
+42
+00:02:23,533 --> 00:02:26,900
+AgentKit as shipped: outcome known, zero times,
+
+43
+00:02:26,900 --> 00:02:30,633
+and it paid twice in 47 of 47.
+
+44
+00:02:30,633 --> 00:02:34,367
+Add a CDP idempotency key, the cheapest fix:
+
+45
+00:02:34,367 --> 00:02:37,733
+double payments stop. Outcome known: still zero.
+
+46
+00:02:37,733 --> 00:02:41,867
+Through Resi: 99 of 100, and no double payments.
+
+47
+00:02:41,867 --> 00:02:44,833
+AgentKit 0.9.1 gave the same answer.
+
+48
+00:02:45,500 --> 00:02:49,633
+If the money only leaves once, why know more?
+
+49
+00:02:49,633 --> 00:02:53,367
+Because the same error means two opposite things.
+
+50
+00:02:53,367 --> 00:02:59,067
+In our runs, 99 of 400 AgentKit calls failed before anything was sent.
+
+51
+00:02:59,067 --> 00:03:02,800
+Expired certificates. Wallet auth errors. Real, not ours.
+
+52
+00:03:02,800 --> 00:03:06,533
+Under our injection, the money had already left.
+
+53
+00:03:06,533 --> 00:03:10,267
+Both times, the agent read the same sentence.
+
+54
+00:03:10,267 --> 00:03:15,200
+Guess it went out, and a real failure is never paid.
+
+55
+00:03:15,200 --> 00:03:19,733
+Guess it didn't, and without a key it pays twice.
+
+56
+00:03:19,733 --> 00:03:23,467
+Only an answer from chain ends the guessing.
+
+57
+00:03:24,133 --> 00:03:27,867
+The failure is induced, not sampled from production.
+
+58
+00:03:27,867 --> 00:03:33,200
+The cheap fix does stop double payments. It can't say what happened.
+
+59
+00:03:33,200 --> 00:03:39,300
+And it's 99, not 100: our one status call hung, and we never retried.
+
+60
+00:03:39,800 --> 00:03:42,767
+Don't trust these numbers. Check them.
+
+61
+00:03:42,767 --> 00:03:46,900
+npm run verify re-reads all 625 hashes from chain.
+
+62
+00:03:46,900 --> 00:03:49,233
+625 succeeded. None missing.
+
+63
+00:03:49,233 --> 00:03:52,233
+And 22 tests cover the provider.
+
+64
+00:03:52,733 --> 00:03:56,867
+Resi. A receipt for every payment your agent makes.
+
+65
+00:03:56,867 --> 00:04:00,233
+Transfers only, on Base Sepolia, for now.
+
+66
+00:04:00,233 --> 00:04:04,367
+Install it, run the demo, and check every hash.

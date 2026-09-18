@@ -1,0 +1,19 @@
+
+> agentkit-keeperhub@0.1.2 test
+> npm run build && vitest run
+
+
+> agentkit-keeperhub@0.1.2 build
+> tsc -p tsconfig.json
+
+
+ RUN  v2.1.9 /Users/scientivan/Programming/Ramz/Keeperhub/packages/agentkit-keeperhub
+
+ ✓ test/keeperHubClient.test.ts (9 tests) 2ms
+ ✓ test/keeperHubActionProvider.test.ts (13 tests) 5ms
+
+ Test Files  2 passed (2)
+      Tests  22 passed (22)
+   Start at  18:42:45
+   Duration  3.52s (transform 47ms, setup 0ms, collect 6.60s, tests 7ms, environment 0ms, prepare 70ms)
+

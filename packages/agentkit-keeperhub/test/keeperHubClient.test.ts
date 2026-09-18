@@ -10,14 +10,14 @@ const base = {
 };
 
 describe("deriveIdempotencyKey", () => {
-  it("menghasilkan kunci yang sama untuk pekerjaan yang sama", () => {
-    // Inilah properti yang mencegah pembayaran ganda: percobaan kedua atas
-    // pekerjaan yang sama harus menghasilkan kunci yang sama persis.
+  it("yields the same key for the same work", () => {
+    // This is the property that prevents paying twice: a second attempt at the
+    // same work must produce exactly the same key.
     expect(deriveIdempotencyKey(base)).toBe(deriveIdempotencyKey({ ...base }));
   });
 
-  it("menghasilkan kunci berbeda untuk taskId berbeda", () => {
-    // Dua pembayaran yang memang berbeda tidak boleh saling menggabung.
+  it("yields different keys for different taskIds", () => {
+    // Two payments that really are different must never merge.
     expect(deriveIdempotencyKey(base)).not.toBe(
       deriveIdempotencyKey({ ...base, taskId: "invoice-2026-0043" }),
     );
@@ -28,31 +28,31 @@ describe("deriveIdempotencyKey", () => {
     ["recipientAddress", { recipientAddress: "0x0000000000000000000000000000000000000001" }],
     ["chainId", { chainId: 8453 }],
     ["tokenAddress", { tokenAddress: "0x0000000000000000000000000000000000000002" }],
-  ])("berubah ketika %s berubah", (_field, patch) => {
-    // Field yang menentukan efek onchain ikut masuk ke kunci, supaya taskId
-    // yang dipakai ulang dengan rincian berbeda terdeteksi sebagai konflik
-    // alih-alih diputar ulang diam-diam.
+  ])("changes when %s changes", (_field, patch) => {
+    // Fields that determine the onchain effect are part of the key, so a taskId
+    // reused with different details is caught as a conflict instead of being
+    // silently replayed.
     expect(deriveIdempotencyKey(base)).not.toBe(deriveIdempotencyKey({ ...base, ...patch }));
   });
 
-  it("berbentuk UUID v4 yang sah", () => {
-    // Beberapa lapisan di bawah menolak kunci yang bukan UUID v4.
+  it("is a valid UUID v4", () => {
+    // Some layers below reject keys that are not UUID v4.
     expect(deriveIdempotencyKey(base)).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
   });
 
-  it("memperlakukan tokenAddress yang kosong sebagai nilai tersendiri", () => {
-    // Transfer native dan transfer ERC-20 dengan nominal sama adalah pekerjaan
-    // yang berbeda.
+  it("treats a missing tokenAddress as its own value", () => {
+    // A native transfer and an ERC-20 transfer of the same amount are different
+    // work.
     const { tokenAddress, ...native } = base;
     expect(deriveIdempotencyKey(native)).not.toBe(deriveIdempotencyKey(base));
   });
 
-  it("stabil lintas proses (nilai tetap, bukan acak)", () => {
-    // Kunci harus bisa disusun ulang setelah proses mati dan hidup lagi.
-    // Nilai tetap ini mengunci algoritmanya; kalau berubah, retry lama
-    // tidak akan lagi cocok dengan eksekusi lama.
+  it("is stable across processes (a fixed value, not random)", () => {
+    // The key must be rebuildable after the process dies and restarts. This
+    // fixed value pins the algorithm; if it changes, old retries will no longer
+    // match old executions.
     expect(deriveIdempotencyKey(base)).toBe("4b92288e-4690-4ad4-970e-8a8787520266");
   });
 });

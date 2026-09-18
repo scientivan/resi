@@ -1,24 +1,27 @@
 /**
- * DEMO — satu perintah, di bawah 90 detik, bisa diulang kapan saja.
+ * DEMO: one command, about 30 seconds, repeatable at any time.
  *
- *   npm run demo
+ *   npm run demo        (DEMO_PACE=slow for camera: 3x longer pauses)
  *
- * Tidak bergantung kondisi pasar, tidak menunggu event, tidak ada cron.
- * Kegagalannya diinduksi sesuai jadwal, jadi hasilnya sama setiap kali.
+ * No market conditions, no waiting for events, no cron. The failure is induced
+ * on schedule, so the result is the same every time.
  *
- * Alurnya persis cerita submission:
- *   1. Agent mengirim uang lewat AgentKit. Jaringan putus saat menunggu
- *      konfirmasi. Agent hanya menerima teks error.
- *   2. Agent melakukan yang wajar: mengulang. Uang keluar DUA KALI.
- *   3. Jalur yang sama lewat KeeperHub: pengulangan diputar ulang, bukan
- *      dikirim lagi, dan agent bisa MENANYAKAN apa yang sebenarnya terjadi.
+ * The flow is the submission's story:
+ *   1. An agent sends money through AgentKit. The network drops while it waits
+ *      for confirmation. The agent receives only error text.
+ *   2. The agent does the reasonable thing: it retries. The money leaves TWICE.
+ *   3. The same work through KeeperHub: the retry is replayed, not resent, and
+ *      the agent can ASK what actually happened.
+ *
+ * Verified against @coinbase/agentkit@0.10.4 (latest on npm): the erc20 transfer
+ * takes { amount (whole units), tokenAddress, destinationAddress }.
  */
 
 import "./_bootstrap.ts";
 import { setInject } from "./_bootstrap.ts";
 import { CdpEvmWalletProvider, erc20ActionProvider } from "@coinbase/agentkit";
 import { keeperHubActionProvider } from "agentkit-keeperhub";
-import { createPublicClient, http, parseAbiItem, getAddress, type Hex } from "viem";
+import { createPublicClient, http, parseAbiItem, getAddress, formatUnits, type Hex } from "viem";
 import { baseSepolia } from "viem/chains";
 
 const TOKEN = getAddress(process.env.USDC ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e");
@@ -28,8 +31,8 @@ const truth = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
 const TRANSFER = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
 const line = (c = "-") => console.log(c.repeat(74));
-// Untuk perekaman, penonton butuh waktu membaca. Default cepat supaya juri
-// yang menjalankannya sendiri tidak menunggu; DEMO_PACE=slow untuk kamera.
+// Viewers need time to read. Fast by default so a judge running it is not kept
+// waiting; DEMO_PACE=slow for the camera.
 const PACE = process.env.DEMO_PACE === "slow" ? 3 : 1;
 const pause = (ms = 1200) => new Promise((r) => setTimeout(r, ms * PACE));
 
@@ -51,88 +54,88 @@ async function main() {
   const khAddr = getAddress(process.env.KH_WALLET ?? "0x449FE01435Af28FD60320B198219068d3f1656CB") as Hex;
   const startBlock = await truth.getBlockNumber();
 
-  console.log("\nDEMO — apa yang terjadi saat jaringan putus setelah uang terkirim");
-  console.log(`Base Sepolia | akun AgentKit ${cdpAddr} | wallet KeeperHub ${khAddr}`);
+  console.log("\nDEMO: what happens when the network drops after the money is sent");
+  console.log(`Base Sepolia | AgentKit account ${cdpAddr} | KeeperHub wallet ${khAddr}`);
 
-  // ---------------------------------------------------------------- BAGIAN 1
+  // ---------------------------------------------------------------- PART 1
   line("=");
-  console.log("BAGIAN 1 — AgentKit apa adanya");
+  console.log("PART 1: AgentKit as shipped");
   line("=");
 
-  const amtA = 4200n + BigInt(stamp % 100);
+  const unitsA = 4200n + BigInt(stamp % 100);
   const erc20 = erc20ActionProvider();
   const sendA = () =>
     erc20.transfer(wallet as never, {
-      amount: amtA.toString(),
-      contractAddress: TOKEN,
-      destination: TO,
+      amount: formatUnits(unitsA, 6),
+      tokenAddress: TOKEN,
+      destinationAddress: TO,
     } as never);
 
-  setInject(true); // polling receipt ditolak mulai sekarang
-  console.log("\n[1] Agent mengirim uang. Konfirmasi tidak pernah kembali.\n");
+  setInject(true); // receipt polling is rejected from here on
+  console.log("\n[1] The agent sends money. The confirmation never comes back.\n");
   const a1 = await sendA();
   console.log(a1.split("\n").slice(0, 3).join("\n"));
   await pause();
 
-  console.log("\n[2] Yang diterima agent hanyalah teks error di atas.");
-  console.log("    Tidak ada executionId. Tidak ada cara bertanya lagi.");
-  console.log("    Agent tidak tahu uangnya sudah keluar atau belum.\n");
+  console.log("\n[2] The error text above is all the agent receives.");
+  console.log("    No executionId. No way to ask again.");
+  console.log("    The agent does not know whether the money left.\n");
   await pause();
 
-  console.log("[3] Agent melakukan yang wajar: mengulang.\n");
+  console.log("[3] The agent does the reasonable thing: it retries.\n");
   const a2 = await sendA();
   console.log(a2.split("\n").slice(0, 3).join("\n"));
   setInject(false);
-  await pause(4000); // tunggu keduanya masuk blok
+  await pause(4000); // let both land in a block
 
-  const landedA = await countTransfers(cdpAddr, amtA, startBlock);
+  const landedA = await countTransfers(cdpAddr, unitsA, startBlock);
   line();
-  console.log(`HASIL: ${landedA.length} transfer mendarat untuk SATU pekerjaan.`);
+  console.log(`RESULT: ${landedA.length} transfers landed for ONE job.`);
   landedA.forEach((l) => console.log(`  ${l.transactionHash}`));
-  if (landedA.length >= 2) console.log("  ^ uang keluar dua kali.");
+  if (landedA.length >= 2) console.log("  ^ the money left twice.");
   await pause(1500);
 
-  // ---------------------------------------------------------------- BAGIAN 2
+  // ---------------------------------------------------------------- PART 2
   line("=");
-  console.log("BAGIAN 2 — pekerjaan yang sama lewat KeeperHub");
+  console.log("PART 2: the same job through KeeperHub");
   line("=");
 
   const kh = keeperHubActionProvider();
-  const amtC = "0.00" + String(4200 + (stamp % 100)).slice(0, 4);
-  const args = { recipientAddress: TO, amount: amtC, tokenAddress: TOKEN, taskId: `demo-${stamp}` };
+  const unitsC = 4200n + BigInt(stamp % 100);
+  const args = { recipientAddress: TO, amount: formatUnits(unitsC, 6), tokenAddress: TOKEN, taskId: `demo-${stamp}` };
 
-  console.log("\n[1] Agent mengirim uang lewat KeeperHub.\n");
+  console.log("\n[1] The agent sends money through KeeperHub.\n");
   const c1 = await kh.transfer(wallet as never, args as never);
   console.log(c1);
   const eid = c1.match(/executionId: (\S+)/)?.[1];
   await pause();
 
-  console.log("\n[2] Agent mengulang pekerjaan yang sama, persis seperti tadi.\n");
+  console.log("\n[2] The agent retries the same job, exactly as before.\n");
   const c2 = await kh.transfer(wallet as never, args as never);
   console.log(c2.split("\n").slice(0, 4).join("\n"));
   const eid2 = c2.match(/executionId: (\S+)/)?.[1];
-  console.log(`\n    executionId sama? ${eid === eid2 ? "YA — diputar ulang, tidak dikirim lagi" : "TIDAK"}`);
+  console.log(`\n    Same executionId? ${eid && eid === eid2 ? "YES: replayed, not sent again" : "NO"}`);
   await pause(1500);
 
-  console.log("\n[3] Dan inilah yang tidak bisa dilakukan AgentKit:");
-  console.log("    agent BERTANYA apa yang sebenarnya terjadi.\n");
+  console.log("\n[3] And this is what AgentKit cannot do:");
+  console.log("    the agent ASKS what actually happened.\n");
   if (eid) console.log(await kh.getExecutionStatus(wallet as never, { executionId: eid } as never));
   await pause(2000);
 
-  // ---------------------------------------------------------------- BAGIAN 3
+  // ---------------------------------------------------------------- PART 3
   line("=");
-  console.log("BAGIAN 3 — gerbang simulasi");
+  console.log("PART 3: the simulation gate");
   line("=");
-  // 50 USDC: di atas saldo dompet (~5 USDC) tapi di bawah batas 100 USD, jadi
-  // yang memblokir adalah SIMULASI yang memprediksi revert, bukan aturan batas.
-  console.log("\nAgent meminta 50 USDC. Saldo dompet cuma sekitar 5.\n");
+  // 50 USDC: above the wallet balance (~5 USDC) but under the 100 USD cap, so
+  // what blocks it is the SIMULATION predicting a revert, not the cap rule.
+  console.log("\nThe agent asks for 50 USDC. The wallet holds about 4.\n");
   console.log(await kh.transfer(wallet as never, { ...args, amount: "50", taskId: `demo-${stamp}-over` } as never));
-  console.log("\n    Simulasi menangkapnya. Nol transaksi, nol gas.");
+  console.log("\n    The simulation caught it. Zero transactions, zero gas.");
 
   line("=");
-  const landedC = await countTransfers(khAddr, BigInt(Math.round(Number(amtC) * 1e6)), startBlock);
-  console.log(`RINGKAS  AgentKit: ${landedA.length} transfer untuk 1 pekerjaan, hasil tidak bisa ditanyakan.`);
-  console.log(`         KeeperHub: ${landedC.length} transfer untuk 1 pekerjaan, hasil terverifikasi dari chain.`);
+  const landedC = await countTransfers(khAddr, unitsC, startBlock);
+  console.log(`SUMMARY  AgentKit:  ${landedA.length} transfers for 1 job, outcome cannot be asked for.`);
+  console.log(`         KeeperHub: ${landedC.length} transfer for 1 job, outcome verified onchain.`);
   line("=");
 }
 

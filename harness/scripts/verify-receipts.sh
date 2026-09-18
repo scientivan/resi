@@ -1,6 +1,6 @@
 #!/bin/bash
-# Satu perintah untuk juri: verifikasi tiap hash di receipts.json langsung ke RPC publik.
-# Pemakaian: ./scripts/verify-receipts.sh receipts.json
+# One command for judges: check every hash in receipts.json against a public RPC.
+# Usage: ./scripts/verify-receipts.sh receipts.json
 RPC="${RPC:-https://sepolia.base.org}"
 F="${1:-receipts.json}"
 ok=0; bad=0; miss=0
@@ -14,4 +14,4 @@ for h in $(python3 -c "import json,sys;[print(r['hash']) for r in json.load(open
     *)   miss=$((miss+1));;
   esac
 done
-echo "sukses=$ok revert=$bad tidak_ditemukan=$miss"
+echo "succeeded=$ok reverted=$bad not_found=$miss"

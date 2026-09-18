@@ -5,31 +5,29 @@ import { TransferSchema, GetExecutionStatusSchema } from "./schemas.js";
 import { NETWORK_ID_TO_CHAIN_ID, SUPPORTED_CHAIN_IDS } from "./constants.js";
 
 export interface KeeperHubActionProviderConfig {
-  /** API key organisasi, berawalan `kh_`. Default: process.env.KEEPERHUB_API_KEY */
+  /** Organisation API key, prefixed `kh_`. Default: process.env.KEEPERHUB_API_KEY */
   apiKey?: string;
   baseUrl?: string;
   timeoutMs?: number;
 }
 
 /**
- * Menjalankan aksi onchain lewat KeeperHub alih-alih menandatanganinya sendiri.
+ * Runs onchain actions through KeeperHub instead of signing them locally.
  *
- * Tiga hal yang membedakannya dari jalur wallet AgentKit biasa:
+ * Three things set it apart from AgentKit's ordinary wallet path:
  *
- * 1. SIMULASI SEBAGAI GERBANG. Tiap penulisan disimulasikan lebih dulu dan
- *    dibatalkan bila `wouldRevert`. Bendera simulasinya ditulis oleh kode,
- *    bukan oleh model, dan tidak bisa dimatikan lewat input.
+ * 1. SIMULATION AS A GATE. Every write is simulated first and aborted on
+ *    `wouldRevert`. The simulate flag is written by code, not by the model, and
+ *    cannot be switched off through input.
  *
- * 2. IDEMPOTENSI YANG DITURUNKAN DARI PEKERJAAN. Kunci dihitung dari `taskId`
- *    plus field yang menentukan efek onchain-nya. Percobaan ulang atas
- *    pekerjaan yang sama menghasilkan kunci yang sama, sehingga diputar ulang
- *    alih-alih dieksekusi dua kali.
+ * 2. IDEMPOTENCY DERIVED FROM THE WORK. The key is computed from `taskId` plus
+ *    the fields that determine the onchain effect. Retrying the same work yields
+ *    the same key, so it is replayed instead of executed twice.
  *
- * 3. HASIL YANG BISA DITANYAKAN KEMBALI. Tiap eksekusi mengembalikan
- *    `executionId`. Setelah kegagalan apa pun, `get_execution_status` menjawab
- *    "apa yang sebenarnya terjadi" dengan receipt yang diambil ulang dari
- *    chain. Ini yang tidak punya padanan di AgentKit: sebuah aksi yang gagal
- *    hanya mengembalikan teks error, tanpa pengenal yang bisa ditanyakan lagi.
+ * 3. AN OUTCOME YOU CAN ASK FOR AGAIN. Every execution returns an `executionId`.
+ *    After any failure, `get_execution_status` answers "what actually happened"
+ *    with receipts re-read from chain. AgentKit has no equivalent: a failed
+ *    action returns only error text, with no identifier to ask about again.
  */
 export class KeeperHubActionProvider extends ActionProvider<EvmWalletProvider> {
   readonly #client: KeeperHubClient;
@@ -47,32 +45,32 @@ export class KeeperHubActionProvider extends ActionProvider<EvmWalletProvider> {
   @CreateAction({
     name: "transfer",
     description: `
-Kirim token lewat KeeperHub, bukan lewat dompet lokal.
+Send tokens through KeeperHub rather than through the local wallet.
 
-Urutannya selalu: simulasi, lalu batalkan bila akan revert, lalu eksekusi
-sekali dengan kunci idempotency yang diturunkan dari taskId.
+The order is always: simulate, abort if it would revert, then execute once with
+an idempotency key derived from taskId.
 
-Masukan:
-- recipientAddress: alamat 0x… penerima
-- amount: nominal dalam unit utuh, misalnya "1.5", BUKAN wei
-- tokenAddress: alamat kontrak ERC-20; kosongkan untuk token native
-- taskId: pengenal stabil untuk pekerjaan ini, misalnya nomor invoice
+Inputs:
+- recipientAddress: the 0x… recipient address
+- amount: whole units, for example "1.5", NOT wei
+- tokenAddress: the ERC-20 contract address; omit for the native token
+- taskId: a stable identifier for this work, for example an invoice number
 
-Penting:
-- Gunakan taskId yang SAMA saat mengulang pekerjaan yang sama. Itulah yang
-  mencegah pembayaran ganda.
-- Gunakan taskId yang BERBEDA untuk pembayaran yang memang berbeda.
+Important:
+- Use the SAME taskId when retrying the same work. That is what prevents paying
+  twice.
+- Use a DIFFERENT taskId for payments that really are different.
 
-taskId adalah pegangan yang TAHAN LAMA, bukan executionId. executionId datang
-di dalam respons, dan respons itulah yang hilang saat terjadi gangguan. Kalau
-respons hilang, panggil aksi ini lagi dengan taskId yang sama: kunci yang sama
-diturunkan, dan executionId yang sama dikembalikan tanpa mengeksekusi ulang.
+taskId is the DURABLE handle, not executionId. executionId arrives inside the
+response, and the response is exactly what gets lost when something goes wrong.
+If the response is lost, call this action again with the same taskId: the same
+key is derived and the same executionId comes back without executing again.
 
-Simpan keduanya kalau bisa. Kalau hanya bisa menyimpan satu, simpan taskId.
+Keep both if you can. If you can keep only one, keep taskId.
 
-Batas: pemulihan lewat taskId hanya berlaku 24 jam. Setelah itu kunci yang sama
-akan MENGEKSEKUSI LAGI, bukan memutar ulang. Untuk pekerjaan yang lebih lama
-dari sehari, sertakan penanda waktu di dalam taskId.
+Limit: recovery through taskId lasts 24 hours. After that the same key will
+EXECUTE AGAIN, not replay. For work that can outlive a day, put a time bucket in
+the taskId.
 `,
     schema: TransferSchema,
   })
@@ -86,13 +84,12 @@ dari sehari, sertakan penanda waktu di dalam taskId.
       : NETWORK_ID_TO_CHAIN_ID[network.networkId ?? ""];
 
     if (!chainId) {
-      return `Error: tidak bisa menentukan chainId dari jaringan ${JSON.stringify(network)}.`;
+      return `Error: cannot determine chainId from network ${JSON.stringify(network)}.`;
     }
     if (!(SUPPORTED_CHAIN_IDS as readonly number[]).includes(chainId)) {
-      // Ditolak di sini, bukan di server. KeeperHub mengembalikan 503 untuk
-      // chain yang tidak didukung, yang menyerupai gangguan sementara dan
-      // mengundang percobaan ulang tanpa akhir.
-      return `Error: KeeperHub tidak mendukung chainId ${chainId}. Yang didukung: ${SUPPORTED_CHAIN_IDS.join(", ")}.`;
+      // Refused here, not at the server. KeeperHub answers 503 for unsupported
+      // chains, which looks like a transient outage and invites endless retries.
+      return `Error: KeeperHub does not support chainId ${chainId}. Supported: ${SUPPORTED_CHAIN_IDS.join(", ")}.`;
     }
 
     const body: Record<string, unknown> = {
@@ -104,11 +101,11 @@ dari sehari, sertakan penanda waktu di dalam taskId.
 
     const sim = await this.#client.simulateTransfer(body);
     if (!sim.success || sim.wouldRevert) {
-      const why = sim.revertReason ?? sim.error ?? "alasan tidak diberikan";
-      // Dibedakan, karena konsekuensinya berbeda: masalah input tidak boleh
-      // diulang apa adanya, masalah keadaan chain boleh dicoba lagi nanti.
-      const kind = sim.failureKind === "validation" ? "Masukan ditolak" : "Simulasi memprediksi revert";
-      return `Dibatalkan sebelum disiarkan. ${kind}: ${why}. Tidak ada transaksi yang dikirim dan tidak ada gas yang terpakai.`;
+      const why = sim.revertReason ?? sim.error ?? "no reason given";
+      // Kept distinct because the consequences differ: bad input must not be
+      // retried as-is, while a chain-state problem may be retried later.
+      const kind = sim.failureKind === "validation" ? "Input rejected" : "Simulation predicts a revert";
+      return `Aborted before broadcast. ${kind}: ${why}. No transaction was sent and no gas was spent.`;
     }
 
     const idempotencyKey = deriveIdempotencyKey({
@@ -122,20 +119,20 @@ dari sehari, sertakan penanda waktu di dalam taskId.
     const exec = await this.#client.executeTransfer(body, idempotencyKey);
 
     if (exec.code === "idempotency_conflict") {
-      return `Error: taskId "${args.taskId}" sudah dipakai untuk pekerjaan dengan rincian berbeda. Pakai taskId baru untuk pekerjaan yang berbeda, dan taskId yang sama hanya untuk mengulang pekerjaan yang sama.`;
+      return `Error: taskId "${args.taskId}" was already used for work with different details. Use a new taskId for different work, and the same taskId only to retry the same work.`;
     }
     if (exec.httpStatus >= 400 || !exec.executionId) {
-      return `Error saat eksekusi (HTTP ${exec.httpStatus}): ${exec.error ?? "tidak diketahui"}. Bila executionId tersedia, tanyakan statusnya sebelum mengirim ulang.`;
+      return `Error during execution (HTTP ${exec.httpStatus}): ${exec.error ?? "unknown"}. If an executionId is available, ask for its status before resending.`;
     }
 
     return [
-      `Transfer diserahkan ke KeeperHub.`,
+      `Transfer handed to KeeperHub.`,
       `executionId: ${exec.executionId}`,
       `status: ${exec.status ?? "unknown"}`,
       exec.transactionHash ? `transactionHash: ${exec.transactionHash}` : null,
       exec.transactionLink ? `explorer: ${exec.transactionLink}` : null,
       `taskId: ${args.taskId}`,
-      `Simpan keduanya. Bila ada kegagalan setelah titik ini, panggil get_execution_status dengan executionId, atau panggil transfer lagi dengan taskId yang sama untuk memperoleh executionId kembali. Jangan memakai taskId baru.`,
+      `Keep both. If anything fails after this point, call get_execution_status with the executionId, or call transfer again with the same taskId to get the executionId back. Do not use a new taskId.`,
     ]
       .filter(Boolean)
       .join("\n");
@@ -144,21 +141,20 @@ dari sehari, sertakan penanda waktu di dalam taskId.
   @CreateAction({
     name: "get_execution_status",
     description: `
-Tanyakan apa yang SEBENARNYA terjadi pada sebuah eksekusi, memakai executionId.
+Ask what ACTUALLY happened to an execution, by executionId.
 
-Pakai ini setiap kali sebuah transfer berakhir dengan error, timeout, atau
-jawaban yang hilang. Receipt yang dikembalikan diambil ulang dari chain, bukan
-dilaporkan sendiri, sehingga membedakan tiga keadaan yang berbeda:
+Use this whenever a transfer ends in an error, a timeout, or a lost response.
+The receipts returned are re-read from chain, not self-reported, so they tell
+apart three different states:
 
-- succeeded : transaksi masuk blok dan berhasil
-- failed    : transaksi masuk blok tapi revert
-- pending   : belum final; JANGAN kirim ulang, transaksinya mungkin masih mendarat
+- succeeded : the transaction was mined and succeeded
+- failed    : the transaction was mined but reverted
+- pending   : not final yet; do NOT resend, the transaction may still land
 
-Mengirim ulang tanpa menanyakan ini adalah cara paling umum sebuah agent
-membayar dua kali.
+Resending without asking this first is the most common way an agent pays twice.
 
-Kalau executionId hilang, jangan menyerah: panggil transfer lagi dengan taskId
-yang sama untuk memperolehnya kembali (berlaku 24 jam).
+If the executionId is lost, do not give up: call transfer again with the same
+taskId to get it back (valid for 24 hours).
 `,
     schema: GetExecutionStatusSchema,
   })
@@ -168,7 +164,7 @@ yang sama untuk memperolehnya kembali (berlaku 24 jam).
   ): Promise<string> {
     const st = await this.#client.getStatus(args.executionId);
     if (st.httpStatus >= 400) {
-      return `Error: tidak bisa membaca status untuk ${args.executionId} (HTTP ${st.httpStatus}).`;
+      return `Error: cannot read status for ${args.executionId} (HTTP ${st.httpStatus}).`;
     }
 
     const verified = (st.receipts ?? []).filter((r) => r.verified === true);
@@ -176,25 +172,25 @@ yang sama untuk memperolehnya kembali (berlaku 24 jam).
       return [
         `executionId: ${st.executionId}`,
         `status: ${st.status}`,
-        `Belum ada receipt yang terverifikasi dari chain. Hasilnya BELUM DIKETAHUI, bukan gagal.`,
-        `Jangan kirim ulang. Tanyakan lagi sebentar kemudian.`,
+        `No receipt has been verified onchain yet. The outcome is NOT YET KNOWN, which is not the same as failed.`,
+        `Do not resend. Ask again shortly.`,
       ].join("\n");
     }
 
     const lines = verified.map(
       (r) =>
-        `  hash ${r.hash} | ${r.receiptStatus ?? "?"} | blok ${r.blockNumber ?? "?"} | gasUsed ${r.gasUsed ?? "?"} | diverifikasi ${r.verifiedAt ?? "?"}`,
+        `  hash ${r.hash} | ${r.receiptStatus ?? "?"} | block ${r.blockNumber ?? "?"} | gasUsed ${r.gasUsed ?? "?"} | verified ${r.verifiedAt ?? "?"}`,
     );
     const anyFailed = verified.some((r) => r.receiptStatus && r.receiptStatus !== "success");
 
     return [
       `executionId: ${st.executionId}`,
       `status: ${st.status}`,
-      `Hasil terverifikasi dari chain (${verified.length} receipt):`,
+      `Verified onchain result (${verified.length} receipt${verified.length === 1 ? "" : "s"}):`,
       ...lines,
       anyFailed
-        ? `Kesimpulan: transaksi masuk blok tetapi REVERT. Dana tidak berpindah.`
-        : `Kesimpulan: transaksi BERHASIL. Jangan kirim ulang pekerjaan ini.`,
+        ? `Conclusion: the transaction was mined but REVERTED. No funds moved.`
+        : `Conclusion: the transaction SUCCEEDED. Do not resend this work.`,
       st.transactionLink ? `explorer: ${st.transactionLink}` : null,
     ]
       .filter(Boolean)

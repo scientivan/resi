@@ -2,9 +2,9 @@
 <meta charset="utf-8">
 <title>Resi — results</title>
 <!--
-  Frame penutup video. Buka di browser, tekan F11 (fullscreen), rekam.
-  Semua angka diambil dari harness/summary.json kampanye 16 Sep 2026.
-  Pola mengikuti frame terakhir Meld: angka besar, lalu kartu kejujuran.
+  Closing frame of the video. Open in a browser, F11 for fullscreen.
+  All numbers from results/agentkit-0.10.4/summary.json, campaign of 16 Sep 2026.
+  Big numbers first, then the caveats.
 -->
 <style>
   :root {
@@ -58,7 +58,7 @@
 
 <div class="wrap">
   <header>
-    <span class="tag">// Section: the hundred &nbsp;·&nbsp; 100 trials, Base Sepolia</span>
+    <span class="tag">// Section: the hundred &nbsp;·&nbsp; 100 trials, AgentKit 0.10.4, Base Sepolia</span>
     <span class="brand">RESI</span>
   </header>
 
@@ -71,7 +71,7 @@
     Receipt polling was rejected at the transport layer while the send path stayed
     open, so the transaction landed and the answer was lost. Every arm ran the same
     work under the same conditions. Every hash below is published and independently
-    verifiable.
+    verifiable. The same campaign on AgentKit 0.9.1 gave 0, 99 and 50 of 50.
   </p>
 
   <table>
@@ -86,12 +86,12 @@
       <tr>
         <td>AgentKit as shipped<div class="arm">no execution id exists</div></td>
         <td class="big r">0 / 100</td>
-        <td class="big r">50 of 50</td>
+        <td class="big r">47 of 47</td>
       </tr>
       <tr>
         <td>+ CDP idempotency key<div class="arm">the cheapest possible fix</div></td>
         <td class="big r">0 / 100</td>
-        <td class="big g">0 of 81</td>
+        <td class="big g">0 of 86</td>
       </tr>
       <tr>
         <td>+ Resi, through KeeperHub<div class="arm">chain-verified receipts</div></td>
@@ -102,11 +102,11 @@
   </table>
 
   <div class="stats">
-    <span><b>310</b> transfers landed</span>
+    <span><b>315</b> transfers landed</span>
     <span><b>700</b> attempts recorded</span>
-    <span><b>582</b> RPC calls rejected</span>
+    <span><b>602</b> RPC calls rejected</span>
     <span><b>100%</b> duplicate rate, arm A</span>
-    <span><b>310 / 310</b> hashes verified onchain</span>
+    <span><b>315 / 315</b> hashes verified onchain</span>
     <span><b>22</b> tests passing</span>
   </div>
 
@@ -123,14 +123,14 @@
     </div>
     <div class="card">
       <b>99, not 100</b>
-      One trial went unresolved because our own client timed out and gave up on
-      a 409. KeeperHub behaved correctly. We did not.
+      The transfer landed, but our one status call hung and was never retried.
+      KeeperHub behaved correctly. We did not.
     </div>
   </div>
 
   <footer>
     <span>npm i agentkit-keeperhub</span>
     <span>github.com/scientivan/resi</span>
-    <span>npm run verify → 310/310</span>
+    <span>npm run verify → 315/315</span>
   </footer>
 </div>

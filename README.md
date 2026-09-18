@@ -1,18 +1,22 @@
 # agentkit-keeperhub
 
 **In 100 trials with receipt polling deliberately broken, a Coinbase AgentKit
-agent could determine the outcome of its own payment in 0 of them. Through this
-KeeperHub provider, 99 of 100, with receipts re-fetched from chain. AgentKit
-double-paid in 50 of 50 comparable trials; this provider in 0 of 100.**
+agent (0.10.4, the latest release) could determine the outcome of its own
+payment in 0 of them. Through this KeeperHub provider, 99 of 100, with receipts
+re-read from chain. AgentKit paid twice in 47 of 47 comparable trials; this
+provider in 0 of 100.**
 
-310 transfers on Base Sepolia. Every hash is in
-[`harness/receipts.json`](harness/receipts.json). Verify any of them yourself:
+The same campaign on AgentKit 0.9.1 gave the same answer: 0 / 100, 99 / 100,
+50 of 50.
+
+625 transfers on Base Sepolia across both runs. Every hash is in
+[`harness/results/`](harness/results/). Verify any of them yourself:
 
 ```bash
 curl -s https://sepolia.base.org -H 'content-type: application/json' \
  -d '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionReceipt",
-      "params":["0x9c57ece7f3927ceb8da20c2f09adfd638e0c99b37cf9db7611c0444f4320715d"]}'
-# status 0x1, block 46880970, gasUsed 0x10726 (67338)
+      "params":["0xc2d34057d0e967cbc4ea29251822d299eef8bcedab29fc70a585ffd98fec26f9"]}'
+# status 0x1, block 46890771, gasUsed 0xaff7 (45047)
 ```
 
 Or check all of them at once: `cd harness && npm run verify`.
@@ -21,10 +25,10 @@ Or check all of them at once: `cd harness && npm run verify`.
 
 ## The gap
 
-Coinbase AgentKit ships 42 action providers — Enso, Morpho, x402, ERC-8004 —
-and none for KeeperHub, although KeeperHub names AgentKit as a partner and
-publishes an ERC-8004 agent registration. Verified 16 Sep 2026: zero GitHub
-repositories, zero npm packages, zero mentions in either issue tracker.
+The latest Coinbase AgentKit on npm (0.10.4) exports 47 action providers,
+among them Enso, Morpho and x402, and none for KeeperHub, although KeeperHub
+names AgentKit as a partner. Verified 16 Sep 2026: zero GitHub repositories,
+zero npm packages, zero mentions in either issue tracker.
 
 Adapters exist for LangChain, ElizaOS, OpenClaw and n8n. AgentKit — the largest,
 at 40,037 npm downloads a month — has none.
@@ -37,9 +41,10 @@ After a transfer, three things can be true:
 2. **Failed** — it did not.
 3. **Unknown** — it was broadcast, but the answer was lost.
 
-**AgentKit reports state 3 as state 2.** In `erc20ActionProvider.transfer`
-(v0.9.1), every error path returns `Error transferring the asset: ${error}` —
-without the transaction hash. There is no execution id, so nothing can be asked
+**AgentKit reports state 3 as state 2.** In `erc20ActionProvider.transfer`,
+the catch-all returns `Error transferring the asset: ${error}`, without the
+transaction hash. That line is unchanged from 0.9.1 to 0.10.4
+(`dist/action-providers/erc20/erc20ActionProvider.js:117` in 0.10.4). There is no execution id, so nothing can be asked
 again.
 
 An agent that hits this has two options and both are wrong: retry and risk
@@ -74,16 +79,20 @@ reader will check.
 
 ### Results
 
-100 trials per arm, Base Sepolia, from block 46881051. 582 RPC calls rejected,
-2,193 passed through. 20.8 minutes of attempt time.
+Two full runs, 100 trials per arm each, Base Sepolia:
+
+| Run | AgentKit | From block | RPC calls rejected | Transfers |
+|---|---|---|---|---|
+| 1 | 0.9.1 | 46881051 | 582 | 310 |
+| 2 | 0.10.4 (latest) | 46890768 | 602 | 315 |
 
 **Primary measure — after the failure, can the caller determine the outcome?**
 
-| Arm | Outcome determinable | Hash merely leaked into error text |
-|---|---|---|
-| A | **0 / 100** | 79 / 100 |
-| B | **0 / 100** | 81 / 100 |
-| C | **99 / 100** | not needed |
+| Arm | 0.10.4 | 0.9.1 | Hash merely leaked into error text (0.10.4) |
+|---|---|---|---|
+| A | **0 / 100** | 0 / 100 | 79 / 100 |
+| B | **0 / 100** | 0 / 100 | 89 / 100 |
+| C | **99 / 100** | 99 / 100 | not needed |
 
 "Determinable" means a chain-verified receipt obtained through a supported API
 surface: `executionId` → `GET /api/execute/{id}/status` → `receipts[].verified`.
@@ -95,18 +104,18 @@ appear at all.
 **Secondary measure — double transfers**, counted only where both attempts
 actually reached the API, so unrelated failures cannot inflate it:
 
-| Arm | Both attempts sent | Duplicated | Rate |
-|---|---|---|---|
-| A | 50 | **50** | **100.0%** |
-| B | 81 | 0 | 0.0% |
-| C | 100 | 0 | 0.0% |
+| Arm | 0.10.4: both sent → duplicated | 0.9.1: both sent → duplicated |
+|---|---|---|
+| A | 47 → **47** (100%) | 50 → **50** (100%) |
+| B | 86 → 0 | 81 → 0 |
+| C | 100 → 0 | 100 → 0 |
 
 ### A prediction, written before the run
 
 > The duplicate rate will equal the induced failure rate.
 
-Injection was on for 100% of arm A trials. Result: 50 of 50. It held in an
-earlier 100-trial run too, at 49 of 49.
+Injection was on for 100% of arm A trials. Result: 47 of 47 on 0.10.4, 50 of 50
+on 0.9.1, and 49 of 49 in an earlier pilot run.
 
 ### What arm B proves, and what it doesn't
 
@@ -114,7 +123,7 @@ Passing a CDP idempotency key **does** stop the double spend — as well as
 KeeperHub does. We report that rather than hide it.
 
 What it does not do is tell the agent what happened: 0 of 100, the same as
-doing nothing. And it is not available to AgentKit users today, because
+doing nothing, on both versions. And it is not available to AgentKit users today, because
 `WalletProvider.sendTransaction(tx)` has no parameter to carry a work identity;
 arm B had to reach past AgentKit into the CDP client to exist at all.
 
@@ -124,17 +133,27 @@ and reconciliation exists in neither.**
 
 ## A failure we did not plan
 
-106 attempts failed with `NetworkError: certificate has expired` while calling
-the CDP API — a real outage, not our injection. It made the argument for us:
+In the 0.9.1 run, 106 attempts failed with `NetworkError: certificate has
+expired` while calling the CDP API (85 more in the 0.10.4 run, plus 14
+`Wallet authentication error`): real failures, not our injection. It made the argument for us:
 there the transaction was never created, so no hash existed anywhere, while
 under injection the transaction existed and the hash leaked into debug text.
 Two different situations, and AgentKit reports both with the same sentence.
 
-Arm C's one unresolved trial is also worth naming: the client timed out at 60s,
-the retry met `409 idempotency_in_progress` ("Retry the same key shortly; do not
-rotate it"), and since neither attempt returned an `executionId`, the caller had
-no handle — even though the transfer did land. KeeperHub behaved correctly;
-**our provider did not**, and the fix is described in its README.
+Arm C's one unresolved trial is worth naming in each run, because the causes
+differ and both are ours:
+
+- **0.9.1 run:** the client timed out at 60s, the retry met
+  `409 idempotency_in_progress` ("Retry the same key shortly; do not rotate it"),
+  and since neither attempt returned an `executionId`, the caller had no handle,
+  even though the transfer did land.
+- **0.10.4 run:** both transfer calls returned the `executionId` and the transfer
+  landed, but the one `get_execution_status` call hung for 925 seconds before
+  aborting with `TimeoutError`, and was not retried. The configured timeout is
+  60 seconds; why it took 15 minutes to fire is not yet explained.
+
+KeeperHub behaved correctly both times. **Our provider has no retry policy of its
+own**, and that is what cost the hundredth trial.
 
 ## Architecture
 
@@ -156,17 +175,18 @@ value and keeps the receipt.
 | Path | What it is |
 |---|---|
 | `packages/agentkit-keeperhub/` | The product. npm package, 22 tests |
-| `harness/scripts/campaign.ts` | The three-arm campaign |
+| `harness/scripts/campaign.ts` | The three-arm campaign, adapts to the installed AgentKit |
 | `harness/scripts/_bootstrap.ts` | Failure injection at the fetch layer |
-| `harness/scripts/demo.ts` | `npm run demo` — 90 seconds, repeatable |
+| `harness/scripts/demo.ts` | `npm run demo`, about 30 seconds, repeatable |
 | `harness/scripts/survey-preflight.py` | Counts pre-flight checks across AgentKit |
-| `harness/receipts.json` | Every transaction hash |
-| `harness/attempts.json` | Raw per-attempt log, including failures |
+| `harness/results/agentkit-<version>/receipts.json` | Every transaction hash, per run |
+| `harness/results/agentkit-<version>/attempts.json` | Raw per-attempt log, including failures |
 | `harness/scripts/verify-receipts.sh` | One command to check every hash |
+| `video/` | The demo video (Remotion), built from captured runs |
 
 ## A survey, and its honest limit
 
-Of 28 AgentKit actions that broadcast transactions in v0.9.1, **26 run no
+Of 28 AgentKit actions that broadcast transactions in v0.9.1 (not yet re-run on 0.10.4), **26 run no
 pre-flight simulation** and 21 have no pre-flight check of any kind. Re-run it
 with `python3 harness/scripts/survey-preflight.py`.
 
@@ -178,18 +198,21 @@ consequence does not.
 
 ## Versions matter
 
-The published `@coinbase/agentkit@0.9.1` differs from GitHub `main` in ways that
-break code written against the docs: schema field names (`contractAddress` /
-`destination` vs `tokenAddress` / `destinationAddress`), units (raw vs whole),
-`rpcUrl` support (absent vs present), balance checks (absent vs present), and
-`getCdpSdkNetwork()` (absent vs present). Everything here is verified against
-the installed package.
+`@coinbase/agentkit` 0.9.1 and 0.10.4 differ in ways that break code written
+against one of them: the erc20 transfer schema (`contractAddress` / `destination`
+in raw units vs `tokenAddress` / `destinationAddress` in whole units), a balance
+check before sending (absent vs present), and `RPC_URL` (ignored vs read by the
+CDP wallet provider). The campaign reads the installed version and adapts.
+
+The `RPC_URL` change bit us: a stale `RPC_URL` from an old proxy setup made
+every 0.10.4 transfer fail at `Could not fetch token details` before anything was
+sent. If you run the harness, leave `RPC_URL` unset.
 
 ## What is not done
 
 - Only `transfer` is wrapped. Contract calls and protocol actions are not.
 - No Solana.
-- No client-side retry policy — which cost us the one unresolved trial.
+- No client-side retry policy, which cost the one unresolved trial in each run.
 - Base Sepolia only.
 - Failure injection is induced, not sampled from production.
 - No upstream contribution. We probed for issues and found that everything we
@@ -202,9 +225,9 @@ the installed package.
 ```bash
 cd packages/agentkit-keeperhub && npm install && npm test    # 22 tests
 cd ../../harness && npm install && cp .env.example .env      # fill in keys
-npm run demo                                                  # 90s, repeatable
-TRIALS=100 npm run campaign                                   # the full run
-npm run verify                                                # check every hash
+npm run demo                                                  # ~30s, repeatable
+TRIALS=100 npm run campaign                                   # writes results/agentkit-<version>/
+npm run verify                                                # check every hash, every run
 ```
 
 ## License

@@ -1,0 +1,44 @@
+{
+  "agentkitVersion": "0.10.4",
+  "runId": "1789549824889",
+  "trials": 100,
+  "startBlock": "46890768",
+  "senders": {
+    "A": "0x292D5dcdb6aC1F3a0452E6eB8fA26Ff6658B325d",
+    "B": "0x292D5dcdb6aC1F3a0452E6eB8fA26Ff6658B325d",
+    "C": "0x449FE01435Af28FD60320B198219068d3f1656CB"
+  },
+  "injectStats": {
+    "passed": 2794,
+    "injected": 602
+  },
+  "summary": {
+    "A": {
+      "landed": 126,
+      "clean": 32,
+      "duplicated": 47,
+      "none": 21,
+      "outcomeKnown": 0,
+      "hashLeaked": 79,
+      "failedAttempts": 200
+    },
+    "B": {
+      "landed": 89,
+      "clean": 89,
+      "duplicated": 0,
+      "none": 11,
+      "outcomeKnown": 0,
+      "hashLeaked": 89,
+      "failedAttempts": 200
+    },
+    "C": {
+      "landed": 100,
+      "clean": 100,
+      "duplicated": 0,
+      "none": 0,
+      "outcomeKnown": 99,
+      "hashLeaked": 0,
+      "failedAttempts": 6
+    }
+  }
+}

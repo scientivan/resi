@@ -1,58 +1,55 @@
 import { z } from "zod";
 
 /**
- * Skema input transfer.
+ * Transfer input schema.
  *
- * Perhatikan apa yang TIDAK ada di sini: `calldata`, `data`, `abi`, dan
- * `simulate`.
+ * Note what is NOT here: `calldata`, `data`, `abi`, and `simulate`.
  *
- * - Calldata mentah tidak pernah diminta dari model. Model memilih penerima,
- *   nominal, dan token; kode yang menyusun transaksinya. Ini mengikuti pola
- *   yang sama dengan address book, karena model tidak bisa diandalkan untuk
- *   menghasilkan hex yang benar.
- * - `simulate` bukan parameter. Provider ini SELALU menyimulasikan lebih dulu
- *   dan menolak bila `wouldRevert`. Menjadikannya opsi berarti membuka
- *   kemungkinan model mematikannya, dan membuka kelas salah eja yang sudah
- *   dilacak KeeperHub di issue #2004 (kunci yang salah eja diterima diam-diam
- *   lalu transaksinya disiarkan sungguhan).
+ * - Raw calldata is never requested from the model. The model picks the
+ *   recipient, amount and token; code builds the transaction. Same idea as an
+ *   address book: models cannot be relied on to produce correct hex.
+ * - `simulate` is not a parameter. This provider ALWAYS simulates first and
+ *   refuses on `wouldRevert`. Making it optional would let the model turn it
+ *   off, and would open the misspelling class KeeperHub tracks in issue #2004
+ *   (a misspelled body key is accepted silently and the transaction is
+ *   broadcast for real).
  */
 export const TransferSchema = z
   .object({
     recipientAddress: z
       .string()
-      .describe("Alamat penerima. Format 0x…, huruf kecil semua atau checksum EIP-55 yang benar."),
+      .describe("Recipient address. 0x…, either all lowercase or a correct EIP-55 checksum."),
     amount: z
       .string()
-      .describe('Nominal dalam unit utuh, bukan wei. Contoh: "1.5" untuk 1,5 USDC.'),
+      .describe('Amount in whole units, not wei. Example: "1.5" for 1.5 USDC.'),
     tokenAddress: z
       .string()
       .optional()
-      .describe("Alamat kontrak ERC-20. Kosongkan untuk mengirim token native chain."),
+      .describe("ERC-20 contract address. Omit to send the chain's native token."),
     taskId: z
       .string()
       .describe(
-        "Pengenal stabil untuk PEKERJAAN ini, bukan untuk percobaan ini. " +
-          "Contoh: nomor invoice, periode payroll, id job. Harus sama saat " +
-          "pekerjaan yang sama diulang, dan berbeda untuk pekerjaan berbeda. " +
-          "Dari sinilah kunci idempotency diturunkan.",
+        "A stable identifier for this piece of WORK, not for this attempt. " +
+          "Examples: an invoice number, a payroll period, a job id. It must be " +
+          "the same when the same work is retried, and different for different " +
+          "work. The idempotency key is derived from it.",
       ),
   })
   .strict()
-  .describe("Kirim token lewat KeeperHub: simulasi dulu, lalu eksekusi idempoten.");
+  .describe("Send tokens through KeeperHub: simulate first, then execute idempotently.");
 
 /**
- * Skema untuk menanyakan hasil sebuah eksekusi.
+ * Schema for asking about the outcome of an execution.
  *
- * Aksi inilah yang tidak punya padanan di AgentKit. Setelah sebuah aksi gagal,
- * AgentKit hanya mengembalikan teks error; tidak ada pengenal yang bisa
- * ditanyakan kembali. `executionId` membuat pertanyaan "apa yang sebenarnya
- * terjadi?" bisa dijawab kapan saja.
+ * This is the action AgentKit has no equivalent for. After an action fails,
+ * AgentKit returns only error text; there is no identifier to ask about again.
+ * `executionId` makes "what actually happened?" answerable at any time.
  */
 export const GetExecutionStatusSchema = z
   .object({
     executionId: z
       .string()
-      .describe("executionId yang dikembalikan aksi transfer sebelumnya."),
+      .describe("The executionId returned by an earlier transfer action."),
   })
   .strict()
-  .describe("Tanyakan hasil akhir sebuah eksekusi, dengan receipt yang diambil ulang dari chain.");
+  .describe("Ask for the final outcome of an execution, with receipts re-read from chain.");

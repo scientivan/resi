@@ -1,22 +1,30 @@
-# Harness — jalankan begitu kredensial ada
+# Harness
 
-Urutan wajib. Jangan lompat; Eksperimen 0 menentukan bentuk proyeknya.
+Measures what happens to an AgentKit payment when receipt polling fails, and
+records every transaction so anyone can check it.
 
 ```bash
-cp .env.example .env    # isi dari SETUP-CREDENTIALS.md
+cp .env.example .env    # CDP + KeeperHub keys; leave RPC_URL unset
 npm install
-npm run exp0            # 1 transaksi, menentukan nasib M3
-npm run proxy           # terminal terpisah: proxy RPC injeksi
-npm run campaign        # kampanye M1, tulis receipts.json
-npm run survey          # hitung ulang 35/37, tulis survey.json
+npm run demo            # ~30s: double payment, then the same job through KeeperHub
+npm run campaign        # TRIALS=100; writes results/agentkit-<installed version>/
+npm run verify          # re-reads every hash in results/ from a public RPC
+npm run survey          # counts pre-flight checks in the installed AgentKit
 ```
 
-## Isi
+## Contents
 
-| Berkas | Guna |
+| Path | Purpose |
 |---|---|
-| `scripts/exp0-revert.ts` | Apakah CDP menyiarkan transaksi yang pasti revert? |
-| `scripts/rpc-proxy.ts` | Proxy Base Sepolia, menolak `eth_getTransactionReceipt` sesuai saklar |
-| `scripts/campaign.ts` | Jalankan lengan A/B/C × N percobaan, catat semua hash |
-| `scripts/survey-preflight.ts` | Survei 37 fungsi, terbitkan angkanya |
-| `scripts/verify-receipts.sh` | Satu perintah untuk juri memverifikasi tiap hash |
+| `scripts/_bootstrap.ts` | Env loading and failure injection at the `fetch` layer |
+| `scripts/campaign.ts` | Arms A/B/C x N trials; adapts to the installed AgentKit schema |
+| `scripts/demo.ts` | The three-part demo shown in the video |
+| `scripts/record-demo.ts` | Runs the demo and saves a timestamped transcript for the video |
+| `scripts/verify-receipts.sh` | Checks every hash in a `receipts.json` |
+| `scripts/survey-preflight.py` | Survey of pre-flight checks across AgentKit actions |
+| `results/agentkit-0.10.4/` | Run on the latest AgentKit (315 transfers) |
+| `results/agentkit-0.9.1/` | Earlier run (310 transfers) |
+| `finale.html` | Closing frame with the results |
+
+`scripts/rpc-proxy.ts` and `scripts/exp0-revert.ts` are from the first
+experiments and are kept for the record; the campaign no longer uses the proxy.

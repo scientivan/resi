@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { keeperHubActionProvider } from "../dist/index.js";
 
 /**
- * Semua tes di sini memalsukan `fetch`, bukan menyuntik klien palsu, supaya
- * kode klien yang sebenarnya ikut teruji: header, bentuk body, dan penguraian
- * respons.
+ * Every test here fakes `fetch` rather than injecting a fake client, so the
+ * real client code is exercised too: headers, body shape, and response parsing.
  */
 
 type Reply = { status?: number; body: unknown };
@@ -50,38 +49,38 @@ const args = {
 
 const OK_SIM = { body: { success: true, wouldRevert: false, gasEstimate: "45415" } };
 
-describe("transfer: gerbang sebelum jaringan", () => {
-  it("menolak chain yang tidak didukung KeeperHub tanpa memanggil API", async () => {
-    // KeeperHub menjawab 503 untuk chain tak didukung, yang menyerupai gangguan
-    // sementara dan mengundang percobaan ulang tanpa akhir. Ditolak di sini.
+describe("transfer: gate before the network", () => {
+  it("refuses chains KeeperHub does not support without calling the API", async () => {
+    // KeeperHub answers 503 for unsupported chains, which looks like a transient
+    // outage and invites endless retries. Refused here instead.
     const out = await kh().transfer(walletOn("100"), args as never);
-    expect(out).toMatch(/tidak mendukung chainId 100/);
+    expect(out).toMatch(/does not support chainId 100/);
     expect(sent).toHaveLength(0);
   });
 });
 
-describe("transfer: gerbang simulasi", () => {
-  it("membatalkan ketika simulasi memprediksi revert, dan tidak mengeksekusi", async () => {
+describe("transfer: simulation gate", () => {
+  it("aborts when simulation predicts a revert, and does not execute", async () => {
     queue.push({ status: 400, body: { success: false, wouldRevert: true, failureKind: "revert", revertReason: "Error(ERC20: transfer amount exceeds balance)" } });
     const out = await kh().transfer(walletOn("84532"), args as never);
-    expect(out).toMatch(/Dibatalkan sebelum disiarkan/);
-    expect(out).toMatch(/Simulasi memprediksi revert/);
-    expect(out).toMatch(/tidak ada gas yang terpakai/);
-    expect(sent).toHaveLength(1); // hanya simulasi, tidak ada eksekusi
+    expect(out).toMatch(/Aborted before broadcast/);
+    expect(out).toMatch(/Simulation predicts a revert/);
+    expect(out).toMatch(/no gas was spent/);
+    expect(sent).toHaveLength(1); // simulation only, no execution
   });
 
-  it("membedakan kegagalan validasi dari prediksi revert", async () => {
-    // Konsekuensinya berbeda: masukan yang salah tidak boleh diulang apa adanya,
-    // sedangkan masalah keadaan chain boleh dicoba lagi nanti.
+  it("tells validation failures apart from revert predictions", async () => {
+    // The consequences differ: bad input must not be retried as-is, while a
+    // chain-state problem may be retried later.
     queue.push({ status: 400, body: { success: false, wouldRevert: true, failureKind: "validation", revertReason: "bad address checksum" } });
     const out = await kh().transfer(walletOn("84532"), args as never);
-    expect(out).toMatch(/Masukan ditolak/);
-    expect(out).not.toMatch(/Simulasi memprediksi revert/);
+    expect(out).toMatch(/Input rejected/);
+    expect(out).not.toMatch(/Simulation predicts a revert/);
   });
 
-  it("selalu mengirim simulate:true, dan nilainya tidak berasal dari input", async () => {
-    // Pertahanan terhadap kelas yang dilacak KeeperHub di #2004: kunci body yang
-    // salah eja diterima diam-diam lalu transaksinya disiarkan sungguhan.
+  it("always sends simulate:true, and the value never comes from input", async () => {
+    // Defence against the class KeeperHub tracks in #2004: a misspelled body key
+    // is accepted silently and the transaction is broadcast for real.
     queue.push(OK_SIM, { status: 202, body: { executionId: "e1", status: "completed" } });
     await kh().transfer(walletOn("84532"), args as never);
     expect(sent[0].body.simulate).toBe(true);
@@ -89,8 +88,8 @@ describe("transfer: gerbang simulasi", () => {
   });
 });
 
-describe("transfer: eksekusi", () => {
-  it("mengirim Idempotency-Key yang diturunkan, bukan diacak", async () => {
+describe("transfer: execution", () => {
+  it("sends a derived Idempotency-Key, not a random one", async () => {
     queue.push(OK_SIM, { status: 202, body: { executionId: "e1", status: "completed" } });
     await kh().transfer(walletOn("84532"), args as never);
     const key1 = sent[1].headers["Idempotency-Key"];
@@ -100,23 +99,23 @@ describe("transfer: eksekusi", () => {
     const key2 = sent[3].headers["Idempotency-Key"];
 
     expect(key1).toBeDefined();
-    expect(key1).toBe(key2); // pekerjaan sama -> kunci sama -> diputar ulang
+    expect(key1).toBe(key2); // same work -> same key -> replayed
   });
 
-  it("mengembalikan executionId dan menyuruh menanyakannya alih-alih mengirim ulang", async () => {
+  it("returns the executionId and says to ask about it instead of resending", async () => {
     queue.push(OK_SIM, { status: 202, body: { executionId: "ks9u", status: "completed", transactionHash: "0xabc" } });
     const out = await kh().transfer(walletOn("84532"), args as never);
     expect(out).toMatch(/executionId: ks9u/);
     expect(out).toMatch(/get_execution_status/);
   });
 
-  it("menjelaskan konflik idempotency sebagai kesalahan pemakaian taskId", async () => {
+  it("explains an idempotency conflict as a taskId misuse", async () => {
     queue.push(OK_SIM, { status: 409, body: { code: "idempotency_conflict", originalExecutionId: "e0" } });
     const out = await kh().transfer(walletOn("84532"), args as never);
-    expect(out).toMatch(/sudah dipakai untuk pekerjaan dengan rincian berbeda/);
+    expect(out).toMatch(/already used for work with different details/);
   });
 
-  it("tidak pernah meminta atau meneruskan calldata mentah", async () => {
+  it("never asks for or forwards raw calldata", async () => {
     queue.push(OK_SIM, { status: 202, body: { executionId: "e1" } });
     await kh().transfer(walletOn("84532"), args as never);
     for (const req of sent) {
@@ -127,41 +126,41 @@ describe("transfer: eksekusi", () => {
   });
 });
 
-describe("get_execution_status: membedakan TIGA keadaan", () => {
-  it("BERHASIL ketika ada receipt terverifikasi dengan status success", async () => {
+describe("get_execution_status: tells THREE states apart", () => {
+  it("SUCCEEDED when a verified receipt has status success", async () => {
     queue.push({ body: { executionId: "e1", status: "completed", receipts: [{ hash: "0xabc", chainId: 84532, verified: true, receiptStatus: "success", blockNumber: 123, gasUsed: "67338" }] } });
     const out = await kh().getExecutionStatus(walletOn("84532"), { executionId: "e1" } as never);
-    expect(out).toMatch(/transaksi BERHASIL/);
-    expect(out).toMatch(/Jangan kirim ulang/);
+    expect(out).toMatch(/transaction SUCCEEDED/);
+    expect(out).toMatch(/Do not resend/);
   });
 
-  it("REVERT ketika receipt terverifikasi tapi statusnya bukan success", async () => {
+  it("REVERTED when a verified receipt is not success", async () => {
     queue.push({ body: { executionId: "e1", status: "completed", receipts: [{ hash: "0xabc", chainId: 84532, verified: true, receiptStatus: "reverted" }] } });
     const out = await kh().getExecutionStatus(walletOn("84532"), { executionId: "e1" } as never);
-    expect(out).toMatch(/REVERT/);
-    expect(out).toMatch(/Dana tidak berpindah/);
+    expect(out).toMatch(/REVERTED/);
+    expect(out).toMatch(/No funds moved/);
   });
 
-  it("BELUM DIKETAHUI ketika belum ada receipt terverifikasi, dan melarang kirim ulang", async () => {
-    // Ini inti argumennya: "belum diketahui" bukan "gagal". Menyamakan keduanya
-    // adalah cara paling umum sebuah agent membayar dua kali.
+  it("NOT YET KNOWN when no receipt is verified, and forbids resending", async () => {
+    // This is the whole argument: "not yet known" is not "failed". Treating them
+    // as the same is the most common way an agent pays twice.
     queue.push({ body: { executionId: "e1", status: "pending", receipts: [] } });
     const out = await kh().getExecutionStatus(walletOn("84532"), { executionId: "e1" } as never);
-    expect(out).toMatch(/BELUM DIKETAHUI, bukan gagal/);
-    expect(out).toMatch(/Jangan kirim ulang/);
+    expect(out).toMatch(/NOT YET KNOWN, which is not the same as failed/);
+    expect(out).toMatch(/Do not resend/);
   });
 
-  it("mengabaikan receipt yang belum terverifikasi", async () => {
-    // `transactionHash` dilaporkan sendiri oleh jalur tulis; hanya receipt yang
-    // diambil ulang dari chain yang dianggap bukti.
+  it("ignores receipts that are not verified", async () => {
+    // `transactionHash` is self-reported by the write path; only receipts
+    // re-read from chain count as evidence.
     queue.push({ body: { executionId: "e1", status: "completed", receipts: [{ hash: "0xabc", chainId: 84532, verified: false, receiptStatus: "success" }] } });
     const out = await kh().getExecutionStatus(walletOn("84532"), { executionId: "e1" } as never);
-    expect(out).toMatch(/BELUM DIKETAHUI/);
+    expect(out).toMatch(/NOT YET KNOWN/);
   });
 });
 
 describe("supportsNetwork", () => {
-  it("menerima chain EVM yang didukung dan menolak yang tidak", () => {
+  it("accepts supported EVM chains and rejects the rest", () => {
     const p = kh();
     expect(p.supportsNetwork({ protocolFamily: "evm", chainId: "84532" } as never)).toBe(true);
     expect(p.supportsNetwork({ protocolFamily: "evm", chainId: "100" } as never)).toBe(false);

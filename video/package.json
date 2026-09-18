@@ -1,0 +1,24 @@
+{
+  "name": "resi-video",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "studio": "remotion studio",
+    "draft": "remotion render Demo out/draft.mp4 --codec h264 --crf 23 --timeout 120000",
+    "final": "remotion render Demo out/demo.mp4 --codec h264 --crf 18 --color-space bt709 --timeout 120000",
+    "srt": "node scripts/srt.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.524",
+    "@remotion/google-fonts": "4.0.524",
+    "@remotion/noise": "4.0.524",
+    "@remotion/transitions": "4.0.524",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.524"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.7.3"
+  }
+}

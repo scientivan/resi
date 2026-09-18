@@ -1,0 +1,5 @@
+node_modules/
+out/stills/
+out/*.mp4
+out/check/
+out/*.log

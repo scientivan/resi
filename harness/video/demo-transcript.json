@@ -1,0 +1,115 @@
+{
+  "recordedAt": "2026-09-16T09:10:11.803Z",
+  "exitCode": 0,
+  "durationMs": 33319,
+  "chunks": [
+    {
+      "t": 9574,
+      "text": "\nDEMO: what happens when the network drops after the money is sent\nBase Sepolia | AgentKit account 0x292D5dcdb6aC1F3a0452E6eB8fA26Ff6658B325d | KeeperHub wallet 0x449FE01435Af28FD60320B198219068d3f1656CB\n"
+    },
+    {
+      "t": 9575,
+      "text": "==========================================================================\nPART 1: AgentKit as shipped\n==========================================================================\n\n[1] The agent sends money. The confirmation never comes back.\n\n"
+    },
+    {
+      "t": 9682,
+      "text": "[bootstrap] AgentKit analytics rejected and upstream did not catch it; silenced. See docs/upstream/agentkit-analytics.md\n"
+    },
+    {
+      "t": 12332,
+      "text": "Error transferring the asset: InvalidInputRpcError: Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\n"
+    },
+    {
+      "t": 13534,
+      "text": "\n[2] The error text above is all the agent receives.\n    No executionId. No way to ask again.\n"
+    },
+    {
+      "t": 13535,
+      "text": "    The agent does not know whether the money left.\n\n"
+    },
+    {
+      "t": 14736,
+      "text": "[3] The agent does the reasonable thing: it retries.\n\n"
+    },
+    {
+      "t": 16747,
+      "text": "Error transferring the asset: InvalidInputRpcError: Missing or invalid parameters.\nDouble check you have provided the correct parameters.\n\n"
+    },
+    {
+      "t": 21119,
+      "text": "--------------------------------------------------------------------------\n"
+    },
+    {
+      "t": 21120,
+      "text": "RESULT: 2 transfers landed for ONE job.\n  0xac2b2d8f318829de04173df84d291cab652bbfb2eb30c42a8136a22782f24114\n  0x0e961700e867513befb50787b9f06a1e39fbf66317d937af5b990537639b54c4\n  ^ the money left twice.\n"
+    },
+    {
+      "t": 22622,
+      "text": "==========================================================================\n"
+    },
+    {
+      "t": 22622,
+      "text": "PART 2: the same job through KeeperHub\n==========================================================================\n"
+    },
+    {
+      "t": 22622,
+      "text": "\n[1] The agent sends money through KeeperHub.\n\n"
+    },
+    {
+      "t": 26376,
+      "text": "Transfer handed to KeeperHub.\nexecutionId: ok75dk43ushogcorut9i9\nstatus: completed\ntransactionHash: 0x0684e7df191193de1cc4684fe8a8d358f9daae98a1a3f2e0281c11a02d92d3fd\nexplorer: https://sepolia.basescan.org/tx/0x0684e7df191193de1cc4684fe8a8d358f9daae98a1a3f2e0281c11a02d92d3fd\ntaskId: demo-1789549786787\nKeep both. If anything fails after this point, call get_execution_status with the executionId, or call transfer again with the same taskId to get the executionId back. Do not use a new taskId.\n"
+    },
+    {
+      "t": 27577,
+      "text": "\n[2] The agent retries the same job, exactly as before.\n\n"
+    },
+    {
+      "t": 28433,
+      "text": "Transfer handed to KeeperHub.\nexecutionId: ok75dk43ushogcorut9i9\nstatus: completed\ntransactionHash: 0x0684e7df191193de1cc4684fe8a8d358f9daae98a1a3f2e0281c11a02d92d3fd\n"
+    },
+    {
+      "t": 28434,
+      "text": "\n    Same executionId? YES: replayed, not sent again\n"
+    },
+    {
+      "t": 29934,
+      "text": "\n[3] And this is what AgentKit cannot do:\n"
+    },
+    {
+      "t": 29934,
+      "text": "    the agent ASKS what actually happened.\n\n"
+    },
+    {
+      "t": 30409,
+      "text": "executionId: ok75dk43ushogcorut9i9\nstatus: completed\nVerified onchain result (1 receipt):\n  hash 0x0684e7df191193de1cc4684fe8a8d358f9daae98a1a3f2e0281c11a02d92d3fd | success | block 46890758 | gasUsed 67350 | verified 2026-09-16T09:10:04.669Z\nConclusion: the transaction SUCCEEDED. Do not resend this work.\nexplorer: https://sepolia.basescan.org/tx/0x0684e7df191193de1cc4684fe8a8d358f9daae98a1a3f2e0281c11a02d92d3fd\n"
+    },
+    {
+      "t": 32410,
+      "text": "==========================================================================\n"
+    },
+    {
+      "t": 32411,
+      "text": "PART 3: the simulation gate\n==========================================================================\n"
+    },
+    {
+      "t": 32411,
+      "text": "\nThe agent asks for 50 USDC. The wallet holds about 4.\n\n"
+    },
+    {
+      "t": 32912,
+      "text": "Aborted before broadcast. Simulation predicts a revert: Error(ERC20: transfer amount exceeds balance). No transaction was sent and no gas was spent.\n\n    The simulation caught it. Zero transactions, zero gas.\n"
+    },
+    {
+      "t": 32912,
+      "text": "==========================================================================\n"
+    },
+    {
+      "t": 33276,
+      "text": "SUMMARY  AgentKit:  2 transfers for 1 job, outcome cannot be asked for.\n"
+    },
+    {
+      "t": 33276,
+      "text": "         KeeperHub: 1 transfer for 1 job, outcome verified onchain.\n==========================================================================\n"
+    }
+  ]
+}

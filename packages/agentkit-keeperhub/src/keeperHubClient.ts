@@ -4,7 +4,7 @@ import { KEEPERHUB_BASE_URL } from "./constants.js";
 export interface KeeperHubClientConfig {
   apiKey: string;
   baseUrl?: string;
-  /** Timeout per permintaan HTTP, milidetik. */
+  /** Per-request HTTP timeout, in milliseconds. */
   timeoutMs?: number;
 }
 
@@ -48,19 +48,18 @@ export interface StatusResult {
 }
 
 /**
- * Kunci idempotency deterministik.
+ * Deterministic idempotency key.
  *
- * Skemanya persis yang didokumentasikan KeeperHub di panduan "Choosing a stable
- * key": `taskId|chainId|recipientAddress|amount|tokenAddress`, pemisah U+007C
- * tanpa spasi di sekitarnya.
+ * The scheme is exactly the one KeeperHub documents in its "Choosing a stable
+ * key" guide: `taskId|chainId|recipientAddress|amount|tokenAddress`, joined by
+ * U+007C with no surrounding spaces.
  *
- * Kenapa diturunkan, bukan diacak: UUID yang dibuat per percobaan tidak
- * bertahan melewati retry, karena percobaan kedua menghasilkan UUID lain
- * sehingga dianggap pekerjaan baru dan dieksekusi lagi. Kunci harus menandai
- * PEKERJAAN, bukan PERCOBAAN.
+ * Why derived rather than random: a UUID generated per attempt does not survive
+ * a retry. The second attempt gets a different UUID, is treated as new work,
+ * and executes again. The key must identify the WORK, not the ATTEMPT.
  *
- * Hasil hash dibentuk menjadi UUID v4 karena beberapa lapisan di bawah
- * mensyaratkan format itu.
+ * The hash is shaped into a UUID v4 because some layers below require that
+ * format.
  */
 export function deriveIdempotencyKey(parts: {
   taskId: string;
@@ -89,7 +88,7 @@ export class KeeperHubClient {
   readonly #timeoutMs: number;
 
   constructor(config: KeeperHubClientConfig) {
-    if (!config.apiKey) throw new Error("KEEPERHUB_API_KEY tidak diisi");
+    if (!config.apiKey) throw new Error("KEEPERHUB_API_KEY is not set");
     this.#apiKey = config.apiKey;
     this.#baseUrl = config.baseUrl ?? KEEPERHUB_BASE_URL;
     this.#timeoutMs = config.timeoutMs ?? 60_000;
@@ -112,9 +111,9 @@ export class KeeperHubClient {
   }
 
   /**
-   * Dry run. Kunci `simulate` ditulis di sini, satu kali, oleh kode.
-   * Ia tidak pernah berasal dari input model, sehingga kelas salah eja yang
-   * dilacak KeeperHub di #2004 tidak bisa terjadi lewat jalur ini.
+   * Dry run. The `simulate` key is written here, once, by code. It never comes
+   * from model input, so the misspelling class KeeperHub tracks in #2004 cannot
+   * happen through this path.
    */
   async simulateTransfer(body: Record<string, unknown>): Promise<SimulationResult> {
     const { json } = await this.#request("/api/execute/transfer", {
@@ -151,7 +150,7 @@ export class KeeperHubClient {
     };
   }
 
-  /** Hasil akhir sebuah eksekusi, dengan receipt yang diambil ulang dari chain. */
+  /** Final outcome of an execution, with receipts re-read from chain. */
   async getStatus(executionId: string): Promise<StatusResult> {
     const { httpStatus, json } = await this.#request(`/api/execute/${executionId}/status`);
     return {

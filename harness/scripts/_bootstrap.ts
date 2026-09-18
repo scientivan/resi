@@ -56,14 +56,14 @@ process.on("unhandledRejection", (reason) => {
     suppressed++;
     if (suppressed === 1) {
       console.warn(
-        "[bootstrap] analytics AgentKit menolak dan tidak tertangkap upstream; dibungkam. " +
-          "Lihat docs/upstream/agentkit-analytics.md",
+        "[bootstrap] AgentKit analytics rejected and upstream did not catch it; silenced. " +
+          "See docs/upstream/agentkit-analytics.md",
       );
     }
     return;
   }
 
-  console.error("[bootstrap] unhandled rejection BUKAN dari analytics:", reason);
+  console.error("[bootstrap] unhandled rejection NOT from analytics:", reason);
   process.exit(1);
 });
 
@@ -91,7 +91,7 @@ export function cdpNetworkFor(networkId: string): string {
     "avalanche-mainnet": "avalanche",
   };
   const n = map[networkId];
-  if (!n) throw new Error(`networkId tidak dikenal untuk CDP: ${networkId}`);
+  if (!n) throw new Error(`unknown networkId for CDP: ${networkId}`);
   return n;
 }
 

@@ -4,9 +4,9 @@ KeeperHub action provider for Coinbase AgentKit. Simulate-gated onchain
 execution, idempotent retries, and **a chain-verified result the agent can ask
 for after a failure**.
 
-Coinbase AgentKit ships 42 action providers, including Enso, Morpho, x402 and
-ERC-8004. There was none for KeeperHub, although KeeperHub lists AgentKit as a
-partner and publishes an ERC-8004 agent registration.
+The latest Coinbase AgentKit (0.10.4) exports 47 action providers, including
+Enso, Morpho and x402. There was none for KeeperHub, although KeeperHub lists
+AgentKit as a partner.
 
 ## The problem this solves
 
@@ -17,7 +17,7 @@ After a transfer, three things can be true:
 3. **Unknown** — the transaction was broadcast but the answer was lost.
 
 AgentKit reports state 3 as state 2. `erc20ActionProvider.transfer` catches
-every error and returns `Error transferring the asset: ${error}` — **without the
+errors and returns `Error transferring the asset: ${error}` — **without the
 transaction hash**. There is no execution id, so nothing can be asked again.
 
 An agent that hits this has two choices and both are wrong: retry and risk
@@ -25,19 +25,20 @@ paying twice, or don't retry and risk never paying at all.
 
 ### Measured
 
-100 trials on Base Sepolia with receipt polling deliberately broken, three ways:
+100 trials per arm on Base Sepolia with receipt polling deliberately broken,
+run twice: on AgentKit 0.10.4 (latest) and 0.9.1.
 
-| Arm | Could the caller determine the outcome? | Double transfers |
+| Arm | Could the caller determine the outcome? | Double transfers (0.10.4 / 0.9.1) |
 |---|---|---|
-| AgentKit as shipped | **0 / 100** | **50 of 50** comparable trials |
-| AgentKit + CDP idempotency key | **0 / 100** | 0 of 81 |
-| **This provider** | **99 / 100** | **0 of 100** |
+| AgentKit as shipped | **0 / 100** on both | **47 of 47** / 50 of 50 comparable trials |
+| AgentKit + CDP idempotency key | **0 / 100** on both | 0 of 86 / 0 of 81 |
+| **This provider** | **99 / 100** on both | **0 of 100** on both |
 
 Double-transfer rates count only trials where both attempts actually reached the
 API, so unrelated network failures do not inflate them.
 
-The one unresolved trial is described under *What is not done* — it is a
-limitation of this package, not of the model.
+The one unresolved trial in each run is described under *What is not done*. It
+is a limitation of this package, not of KeeperHub.
 
 Adding a CDP idempotency key stops the double spend — but the agent still cannot
 find out what happened. That is the gap this package closes.
@@ -50,7 +51,11 @@ Full method, raw logs and every transaction hash are in the project repository.
 npm install agentkit-keeperhub
 ```
 
-Peer dependencies: `@coinbase/agentkit >= 0.9.0`, `zod ^3`.
+Peer dependencies: `@coinbase/agentkit >= 0.9.0` (tested on 0.9.1 and 0.10.4),
+`zod ^3`.
+
+With AgentKit 0.10 and later, the CDP wallet provider reads `RPC_URL` from the
+environment. A stale value makes every read fail before anything is sent.
 
 ## Use
 
@@ -146,17 +151,20 @@ chain-state problem may be retried later.
 - **No Solana.** KeeperHub supports it; this provider does not.
 - **Failure injection in the published measurement is induced**, not observed in
   the wild: `eth_getTransactionReceipt` is rejected at the fetch layer on demand.
-  One naturally occurring failure did appear during the campaign
-  (`NetworkError: certificate has expired`, 68 occurrences) and is reported
-  separately.
+  Naturally occurring failures did appear: `NetworkError: certificate has
+  expired` (106 attempts in the 0.9.1 run, 85 in the 0.10.4 run) and `Wallet
+  authentication error` (14, 0.10.4 run). They are reported separately.
 - **No retry policy of its own.** It relies on KeeperHub's managed retries and
-  does not add a client-side one. This cost us one trial out of 100: the client
-  timed out at 60s, the retry met
+  does not add a client-side one. This cost one trial out of 100 in each run.
+  In the 0.9.1 run the client timed out at 60s, the retry met
   `409 idempotency_in_progress` ("Retry the same key shortly; do not rotate
   it."), and because neither attempt returned an `executionId`, the caller had
   no handle to reconcile with — even though the transfer did land onchain. The
   right fix is to honour that 409 by retrying the same key after a short delay,
-  and to surface the execution even when the first response is lost. Not done.
+  and to surface the execution even when the first response is lost. In the
+  0.10.4 run the transfer returned its `executionId` and landed, but the single
+  `get_execution_status` call hung for 925 seconds before aborting (the timeout
+  is 60s; not yet explained) and was not retried. Not done.
 - **Tested on Base Sepolia only.** Other supported chains are declared but
   unexercised.
 

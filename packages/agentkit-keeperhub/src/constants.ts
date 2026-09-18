@@ -1,12 +1,12 @@
-/** Basis URL layanan KeeperHub. */
+/** KeeperHub service base URL. */
 export const KEEPERHUB_BASE_URL = "https://app.keeperhub.com";
 
 /**
- * Chain yang didukung KeeperHub per 16 Sep 2026, dibaca dari
- * `GET https://app.keeperhub.com/api/chains` (endpoint publik, tanpa auth).
+ * Chains KeeperHub supports as of 16 Sep 2026, read from
+ * `GET https://app.keeperhub.com/api/chains` (public endpoint, no auth).
  *
- * Gnosis (100) SENGAJA tidak ada di sini: KeeperHub tidak mendukungnya, dan
- * mendaftarkannya hanya akan membuat aksi gagal jauh di belakang.
+ * Gnosis (100) is deliberately absent: KeeperHub does not support it, and
+ * listing it would only make actions fail much later.
  */
 export const SUPPORTED_CHAIN_IDS = [
   1, 10, 56, 137, 4217, 4663, 8453, 9745, 16661, 42161, 43114, // mainnet

@@ -1,0 +1,9 @@
+
+> verify
+> for d in results/agentkit-*/; do echo "$d"; ./scripts/verify-receipts.sh "$d/receipts.json"; done
+
+results/agentkit-0.10.4/
+succeeded=315 reverted=0 not_found=0
+results/agentkit-0.9.1/
+succeeded=310 reverted=0 not_found=0
+npm run verify  25.52s user 10.90s system 13% cpu 4:21.49 total

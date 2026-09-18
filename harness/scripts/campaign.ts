@@ -15,14 +15,24 @@
  * Hitungan diambil dari log `Transfer` on-chain, bukan dari hash yang
  * dilaporkan SDK, karena AgentKit justru membuang hash di jalur error.
  *
- * Diverifikasi terhadap @coinbase/agentkit@0.9.1, BUKAN GitHub main. Keduanya
- * berbeda dalam nama field skema, opsi rpcUrl, dan pra-pemeriksaan.
+ * Runs against the INSTALLED @coinbase/agentkit and adapts to its transfer schema:
+ *   0.9.x : { amount (raw units), contractAddress, destination }
+ *   0.10.x: { amount (whole units), tokenAddress, destinationAddress }
+ * Output goes to OUT_DIR (default: results/agentkit-<version>/), so a run on one
+ * version never overwrites the published results of another.
  */
 
 import "./_bootstrap.ts";
 import { cdpNetworkFor, setInject, injectStats, wrapProvider } from "./_bootstrap.ts";
 import { createHash } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const AK_VERSION: string = JSON.parse(
+  readFileSync(new URL("../node_modules/@coinbase/agentkit/package.json", import.meta.url), "utf8"),
+).version;
+const AK_LEGACY_SCHEMA = AK_VERSION.startsWith("0.9.");
+const OUT_DIR = process.env.OUT_DIR ?? join("results", `agentkit-${AK_VERSION}`);
 import { createPublicClient, http, parseAbiItem, getAddress, formatUnits, type Hex } from "viem";
 import { baseSepolia } from "viem/chains";
 import { CdpEvmWalletProvider, erc20ActionProvider } from "@coinbase/agentkit";
@@ -143,15 +153,12 @@ function withCdpIdempotency(base: CdpEvmWalletProvider, key: () => string) {
   });
 }
 
-async function runAgentKitArm(arm: Arm, wallet: CdpEvmWalletProvider, trial: number, amountRaw: string) {
+async function runAgentKitArm(arm: Arm, wallet: CdpEvmWalletProvider, trial: number, amountRaw: string, amountText: string) {
   const erc20 = erc20ActionProvider();
-  // v0.9.1: { amount (unit mentah), contractAddress, destination }.
-  const call = () =>
-    erc20.transfer(wallet as never, {
-      amount: amountRaw,
-      contractAddress: CFG.token,
-      destination: CFG.recipient,
-    } as never);
+  const input = AK_LEGACY_SCHEMA
+    ? { amount: amountRaw, contractAddress: CFG.token, destination: CFG.recipient }
+    : { amount: amountText, tokenAddress: CFG.token, destinationAddress: CFG.recipient };
+  const call = () => erc20.transfer(wallet as never, input as never);
 
   const parse = (out: string) => {
     const hash = (out.match(/0x[a-fA-F0-9]{64}/)?.[0] ?? null) as Hex | null;
@@ -208,10 +215,10 @@ async function runKeeperHubArm(
   };
 
   const parseExec = (out: string) => ({
-    ok: !out.startsWith("Error") && !out.startsWith("Dibatalkan"),
+    ok: !out.startsWith("Error") && !out.startsWith("Aborted"),
     hash: (out.match(/transactionHash: (0x[a-fA-F0-9]{64})/)?.[1] ?? null) as Hex | null,
     executionId: out.match(/executionId: (\S+)/)?.[1],
-    error: out.startsWith("Error") || out.startsWith("Dibatalkan") ? out.slice(0, 300) : undefined,
+    error: out.startsWith("Error") || out.startsWith("Aborted") ? out.slice(0, 300) : undefined,
   });
 
   const r1 = await record("C", trial, 1, async () => parseExec(await kh.transfer(wallet as never, args as never)));
@@ -227,7 +234,7 @@ async function runKeeperHubArm(
         ok: true,
         hash: (st.match(/hash (0x[a-fA-F0-9]{64})/)?.[1] ?? null) as Hex | null,
         executionId: eid,
-        outcomeKnown: st.includes("Hasil terverifikasi dari chain"),
+        outcomeKnown: st.includes("Verified onchain result"),
       };
     });
   }
@@ -257,7 +264,9 @@ async function main() {
   console.log("wallet KeeperHub:", CFG.khWallet);
   console.log("blok awal       :", startBlock);
   console.log("percobaan       :", CFG.trials, "per lengan");
-  console.log("RUN_ID          :", RUN_ID, "\n");
+  console.log("RUN_ID          :", RUN_ID);
+  console.log("agentkit        :", AK_VERSION, "->", OUT_DIR, "\n");
+  mkdirSync(OUT_DIR, { recursive: true });
 
   for (let i = 0; i < CFG.trials; i++) {
     const a = amountFor("A", i);
@@ -265,12 +274,12 @@ async function main() {
     const c = amountFor("C", i);
 
     setInject(true);
-    await runAgentKitArm("A", wallet, i, a.raw);
+    await runAgentKitArm("A", wallet, i, a.raw, a.text);
     setInject(false);
 
     const keyB = stableKey(`m1-${i}`, b.text);
     setInject(true);
-    await runAgentKitArm("B", withCdpIdempotency(wallet, () => keyB) as CdpEvmWalletProvider, i, b.raw);
+    await runAgentKitArm("B", withCdpIdempotency(wallet, () => keyB) as CdpEvmWalletProvider, i, b.raw, b.text);
     setInject(false);
 
     await runKeeperHubArm(wallet, i, c.text, `${RUN_ID}-m1-${i}`);
@@ -311,12 +320,14 @@ async function main() {
     }
   }
 
-  writeFileSync("receipts.json", JSON.stringify(receipts, null, 2));
-  writeFileSync("attempts.json", JSON.stringify(attempts, null, 2));
+  writeFileSync(join(OUT_DIR, "receipts.json"), JSON.stringify(receipts, null, 2));
+  writeFileSync(join(OUT_DIR, "attempts.json"), JSON.stringify(attempts, null, 2));
   writeFileSync(
-    "summary.json",
+    join(OUT_DIR, "summary.json"),
     JSON.stringify(
       {
+        agentkitVersion: AK_VERSION,
+        runId: RUN_ID,
         trials: CFG.trials,
         startBlock: startBlock.toString(),
         senders: { A: senderFor("A"), B: senderFor("B"), C: senderFor("C") },
@@ -346,7 +357,7 @@ async function main() {
   }
   console.log(`\ninjeksi: ${injectStats.injected} ditolak, ${injectStats.passed} diteruskan`);
   console.log(`percobaan tercatat: ${attempts.length}`);
-  console.log("ditulis: receipts.json, attempts.json, summary.json");
+  console.log(`ditulis: ${OUT_DIR}/{receipts,attempts,summary}.json`);
 }
 
 main().catch((e) => {
