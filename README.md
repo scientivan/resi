@@ -9,14 +9,20 @@ provider in 0 of 100.**
 The same campaign on AgentKit 0.9.1 gave the same answer: 0 / 100, 99 / 100,
 50 of 50.
 
-625 transfers on Base Sepolia across both runs. Every hash is in
-[`harness/results/`](harness/results/). Verify any of them yourself:
+625 transfers on Base Sepolia across both runs, all arms. 200 of them were
+executed through KeeperHub (arm C, 100 per run); the rest are the AgentKit
+baselines they are compared against. Every hash is in
+[`harness/results/`](harness/results/), tagged by arm. Verify any of them yourself.
+
+A transfer executed through KeeperHub (arm C, trial 0, executionId
+`fbap203n45jrwl61ijfvs`):
+[`0xe085aa27…631d`](https://sepolia.basescan.org/tx/0xe085aa27d4ddeb8ccebd03e39c9c6b5f07864c33bf382d1edcf8a387eb30631d)
 
 ```bash
 curl -s https://sepolia.base.org -H 'content-type: application/json' \
  -d '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionReceipt",
-      "params":["0xc2d34057d0e967cbc4ea29251822d299eef8bcedab29fc70a585ffd98fec26f9"]}'
-# status 0x1, block 46890771, gasUsed 0xaff7 (45047)
+      "params":["0xe085aa27d4ddeb8ccebd03e39c9c6b5f07864c33bf382d1edcf8a387eb30631d"]}'
+# status 0x1, block 46890775: 0.003 USDC from the KeeperHub wallet 0x449F…56CB
 ```
 
 Or check all of them at once: `cd harness && npm run verify`.
